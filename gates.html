@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReadSmart — Gate Assessments</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{--teal:#1D9E75;--teal-light:#E1F5EE;--teal-dark:#085041;--purple:#534AB7;--purple-light:#EEEDFE;--coral:#993C1D;--coral-light:#FAECE7;--blue:#185FA5;--blue-light:#E6F1FB;--amber:#BA7517;--amber-light:#FAEEDA;--red:#E24B4A;--red-light:#FCEBEB;--gray-900:#1a1a1a;--gray-700:#444441;--gray-500:#888780;--gray-300:#D3D1C7;--gray-100:#F1EFE8;--white:#fff;--radius:10px;--radius-sm:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:#f8f7f4;color:var(--gray-700);min-height:100vh;}
+.topbar{height:56px;background:var(--white);border-bottom:1px solid var(--gray-300);display:flex;align-items:center;padding:0 1.5rem;gap:1rem;position:sticky;top:0;z-index:100;}
+.topbar-logo{font-size:18px;font-weight:600;color:var(--teal);}
+.topbar-back{background:none;border:none;cursor:pointer;color:var(--gray-500);font-size:13px;display:flex;align-items:center;gap:5px;font-family:inherit;}
+.topbar-back:hover{color:var(--teal);}
+.topbar-sep{flex:1;}
+.main{max-width:800px;margin:0 auto;padding:2rem 1.5rem;}
+.page-title{font-size:22px;font-weight:600;color:var(--gray-900);margin-bottom:.25rem;}
+.page-sub{font-size:14px;color:var(--gray-500);margin-bottom:1.75rem;}
+.card{background:var(--white);border-radius:var(--radius);border:1px solid var(--gray-300);padding:1.25rem;margin-bottom:1rem;}
+.btn{padding:8px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .12s;display:inline-flex;align-items:center;gap:6px;border:none;}
+.btn-teal{background:var(--teal);color:var(--white);}
+.btn-teal:hover{background:var(--teal-dark);}
+.btn-outline{background:var(--white);color:var(--gray-700);border:1.5px solid var(--gray-300);}
+.btn-outline:hover{background:var(--gray-100);}
+.btn-lg{padding:11px 24px;font-size:15px;}
+.select-input{width:100%;padding:10px 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;background:var(--white);color:var(--gray-900);cursor:pointer;margin-bottom:1rem;}
+.select-input:focus{outline:none;border-color:var(--teal);}
+/* Gate selector */
+.gate-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1.5rem;}
+.gate-tile{background:var(--white);border:1.5px solid var(--gray-300);border-radius:var(--radius);padding:1rem;cursor:pointer;transition:all .15s;text-align:center;}
+.gate-tile:hover{border-color:var(--teal);background:var(--teal-light);}
+.gate-tile.active{border-color:var(--teal);background:var(--teal-light);}
+.gate-num{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;margin:0 auto .5rem;}
+.gate-name{font-size:12px;font-weight:500;color:var(--gray-700);}
+.gate-ages{font-size:11px;color:var(--gray-500);margin-top:2px;}
+/* Criteria */
+.crit-card{background:var(--white);border:1px solid var(--gray-300);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:.75rem;}
+.crit-card.primary{border-left:3px solid var(--red);border-radius:0 var(--radius) var(--radius) 0;}
+.crit-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:.2rem;}
+.crit-title{font-size:14px;font-weight:600;color:var(--gray-900);margin-bottom:.25rem;}
+.crit-desc{font-size:13px;color:var(--gray-500);margin-bottom:.7rem;line-height:1.5;}
+.score-row{display:flex;gap:8px;flex-wrap:wrap;}
+.score-btn{padding:6px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--gray-300);background:transparent;cursor:pointer;font-size:13px;color:var(--gray-700);font-family:inherit;transition:all .15s;}
+.score-btn:hover{background:var(--gray-100);}
+.score-btn.s0{background:var(--red-light);border-color:var(--red);color:#791F1F;}
+.score-btn.s1{background:var(--amber-light);border-color:var(--amber);color:#633806;}
+.score-btn.s2{background:var(--teal-light);border-color:var(--teal);color:var(--teal-dark);}
+.primary-tag{font-size:11px;padding:2px 8px;border-radius:8px;background:var(--red-light);color:#791F1F;border:1px solid var(--red);font-weight:500;}
+/* Decision box */
+.decision-box{border-radius:var(--radius);padding:1.25rem;margin:.75rem 0;border:1px solid;}
+.decision-pass{background:var(--teal-light);border-color:var(--teal);}
+.decision-hold{background:var(--amber-light);border-color:var(--amber);}
+.decision-remediate{background:var(--red-light);border-color:var(--red);}
+.progress-bar{height:8px;background:var(--gray-100);border-radius:4px;margin-top:.5rem;}
+.progress-fill{height:8px;border-radius:4px;transition:width .4s;}
+/* Remediation */
+.rem-card{background:var(--gray-100);border-radius:var(--radius-sm);padding:.75rem 1rem;margin-top:.6rem;font-size:13px;color:var(--gray-700);line-height:1.6;border-left:3px solid var(--amber);}
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--gray-900);color:var(--white);padding:10px 18px;border-radius:var(--radius-sm);font-size:14px;z-index:9999;transform:translateY(80px);opacity:0;transition:all .25s;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{background:var(--teal);}
+.toast.error{background:var(--red);}
+#screen-select,#screen-gate{display:none;}
+#screen-select.active,#screen-gate.active{display:block;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <button class="topbar-back" onclick="window.location.href='index.html'">← Dashboard</button>
+  <div class="topbar-sep"></div>
+  <div class="topbar-logo">ReadSmart</div>
+</div>
+
+<div class="main">
+
+<div id="screen-select" class="active">
+  <div class="page-title">Gate assessments</div>
+  <div class="page-sub">Select a learner and gate to run the assessment rubric</div>
+  <div class="card">
+    <div style="font-size:15px;font-weight:600;color:var(--gray-900);margin-bottom:.75rem">Select learner</div>
+    <select class="select-input" id="learner-select"></select>
+    <div style="font-size:15px;font-weight:600;color:var(--gray-900);margin-bottom:.75rem">Select gate</div>
+    <div class="gate-grid" id="gate-grid"></div>
+    <button class="btn btn-teal btn-lg" onclick="startGate()">Begin gate assessment →</button>
+  </div>
+</div>
+
+<div id="screen-gate">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+    <div>
+      <button class="btn btn-outline" onclick="show('screen-select')" style="margin-bottom:.5rem">← Change selection</button>
+      <div class="page-title" id="gate-title"></div>
+      <div class="page-sub" id="gate-sub" style="margin-bottom:0"></div>
+    </div>
+  </div>
+
+  <div style="font-size:13px;font-weight:500;color:var(--gray-900);margin-bottom:.75rem">
+    🔴 Primary criterion — <span style="font-weight:400;color:var(--gray-500)">must be met for gate passage</span>
+  </div>
+  <div id="primary-criterion"></div>
+
+  <div style="font-size:13px;font-weight:500;color:var(--gray-900);margin:.75rem 0">
+    Secondary criteria — <span style="font-weight:400;color:var(--gray-500)">inform monitoring plan</span>
+  </div>
+  <div id="secondary-criteria"></div>
+
+  <div id="decision-output"></div>
+
+  <div style="display:flex;gap:.75rem;margin-top:1.25rem">
+    <button class="btn btn-teal btn-lg" onclick="saveGate()">Save gate decision →</button>
+    <button class="btn btn-outline" onclick="resetGate()">Reset scores</button>
+  </div>
+</div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let db, currentUser, learners=[], scores={}, selectedLearner=null, selectedGate=null;
+
+const GATES=[
+  {num:1,name:'Stage 1 → 2',ages:'Age 5–6',color:'#1D9E75',light:'#E1F5EE',
+   title:'Gate 1 — Phonological foundation exit',sub:'Conducted after 8 weeks of Stage 1 instruction',
+   primary:{key:'del',title:'Phoneme deletion — initial sounds',desc:'Say "cat" without the /k/ = "at". Run 10 items. Target: 7/10.',
+    rem:'Return to Stage 1 phoneme deletion. Practise compound-word deletion first (sunshine→shine), then initial deletion. Re-gate in 4 weeks. Do NOT begin Stage 2 phonics.'},
+   secondary:[
+    {key:'blend',title:'Phoneme blending — CVC words',desc:'Robot talk: /d/ /ɒ/ /g/ → dog. Run 10 items. Target: 8/10.',rem:'Strengthen robot-talk blending daily. If no progress in 3 weeks — refer for phonological processing assessment.'},
+    {key:'letters',title:'Letter–sound automaticity — OG Groups 1 & 2',desc:'Flash 12 letters (a s t i p n m d g o c k). All correct, under 2 seconds each.',rem:'Target specific hesitation letters with daily sky writing and sand tray. Re-test after 2 weeks.'},
+    {key:'seg',title:'Phoneme segmentation — sound boxes',desc:'Push counter per phoneme. 10 CVC words. Left-to-right direction correct. Target: 8/10.',rem:'Return to sound boxes with 2-phoneme words. Rebuild left-to-right tracking. OT referral if directionality persists.'},
+    {key:'rhyme',title:'Rhyme recognition and syllable segmenting',desc:'Rhyme: 8/10 pairs correct. Syllables: 8/10 words (1–3 syllables).',rem:'Increase rhyme exposure — daily nursery rhymes and sorting games. If no progress in 4 weeks — check hearing and auditory processing.'},
+  ]},
+  {num:2,name:'Stage 2 → 3',ages:'Age 6–7',color:'#534AB7',light:'#EEEDFE',
+   title:'Gate 2 — Decoding exit',sub:'Conducted after 10 weeks of Stage 2 instruction',
+   primary:{key:'wcpm',title:'Oral reading fluency — 20+ WCPM on decodable text',desc:'1-minute cold read of Stage 2 decodable passage (CVC + blends + digraphs). Target: 20+ WCPM.',
+    rem:'Increase repeated reading frequency — 3 reads per session. Run daily NIM sessions. Ensure text is at 95%+ accuracy. Re-gate in 4–6 weeks.'},
+   secondary:[
+    {key:'letters',title:'Letter automaticity — all 26 letters',desc:'Flash full 26-letter deck. All correct, consistent 2-second response.',rem:'Daily VAK drill on failing letters. Sky write + sand tray + whiteboard each session. All 26 must be automatic before Stage 3.'},
+    {key:'nonsense',title:'Nonsense word decoding — 10/12',desc:'Present 12 nonsense words (CVC + blend + digraph patterns). Target: 10/12. Tests pure decoding.',rem:'CRITICAL: Nonsense failure with real-word success = compensated dyslexia. Do NOT introduce Stage 3 sight words. Return to pure phonological decoding. Refer for formal assessment.'},
+    {key:'dict',title:'Dictation sentences — 80%+ phonologically accurate',desc:'Dictate 3 sentences. Score phonological plausibility of spelling. Target: 80%+.',rem:'Return to SOS dictation. Distinguish phonological errors (wrong sound) from motor errors (wrong formation). Different causes need different interventions.'},
+    {key:'acc',title:'Reading accuracy — 95%+ on decodable text',desc:'Calculate: (words − errors) ÷ words × 100. Target: 95%+.',rem:'Text level is too hard — step back to Level A decodable readers. Accuracy must reach 95% before fluency work.'},
+    {key:'sc',title:'Self-correction behaviour',desc:'Does the learner notice and correct their own errors during oral reading?',rem:'Learner is not monitoring meaning. Begin comprehension monitoring: stop-and-retell after every paragraph.'},
+  ]},
+  {num:3,name:'Stage 3 → 4',ages:'Age 7–8',color:'#993C1D',light:'#FAECE7',
+   title:'Gate 3 — Word recognition exit',sub:'Conducted after 10 weeks of Stage 3 instruction',
+   primary:{key:'wcpm',title:'Oral reading fluency — 50+ WCPM on instructional text',desc:'1-minute cold read of instructional-level text (multisyllabic words, vowel teams). Target: 50+ WCPM.',
+    rem:'Increase repeated reading frequency. Move to Level B passages. Target instructional level (95% accuracy) — never sacrifice accuracy for speed.'},
+   secondary:[
+    {key:'sight',title:'Sight word automaticity — 45/50 words',desc:'Flash all 50 target sight words randomly. Target: 45+ automatic (under 1 second).',rem:'Daily LSCWC for 3 new sight words per week. Colour-code the irregular part. If retention is poor after 6 weeks — orthographic processing assessment needed.'},
+    {key:'morph',title:'Morpheme strip — 7/8 words',desc:'Present 8 multimorphemic words. Learner strips prefix/suffix and reads the root. Target: 7/8.',rem:'Return to morpheme tile activities. Build word families explicitly — one root per session. Morphology is a Stage 3 cornerstone.'},
+    {key:'syll',title:'Syllable type identification — all 6 types',desc:'Identify 6 syllable types, state vowel rule, apply to 6 two-syllable words.',rem:'Reteach failing syllable types. Use physical cutting technique. Types must be automatic for multisyllabic word attack.'},
+    {key:'spell',title:'Spelling rules — 80%+ on Rules 1–5',desc:'Dictate 10 words requiring Rules 1–5 (Floss, CK, silent-e, drop-e, double-consonant).',rem:'Reteach failing rules explicitly. Provide rule reference card. Rules 3 and 4 (silent-e) are the most common failure points.'},
+    {key:'vocab',title:'Tier 2 vocabulary — 20+ words defined with depth',desc:'Flash 25 Tier 2 target words. Learner defines and uses in a sentence. Target: 20+ with usage depth.',rem:'Return to 4-step vocabulary routine. Assess whether learner knows roots of target words — vocabulary poverty may underlie the gap.'},
+  ]},
+  {num:4,name:'Stage 4 → 5',ages:'Age 8–10',color:'#185FA5',light:'#E6F1FB',
+   title:'Gate 4 — Fluency exit',sub:'Conducted after 10 weeks of Stage 4 instruction — dual primary criterion',
+   primary:{key:'wcpm_mfs',title:'WCPM 100+ AND MFS prosody 3.0+ (dual criterion)',desc:'BOTH must be met: (1) 100+ WCPM cold read on Level B/C passage. (2) MFS composite 3.0+ across all four prosody dimensions.',
+    rem:'If WCPM fails: increase charted repeated reading. Move to Level B passages.\nIf MFS fails: run daily readers theatre rehearsals and punctuation walk activities. Record oral reading and play back — self-listening is powerful.'},
+   secondary:[
+    {key:'stam',title:'Reading stamina — 20 minutes independent',desc:'Learner reads independently at independent level for 20 minutes without prompt or abandonment.',rem:'Build stamina incrementally — add 2 minutes per week. Ensure independent-level text (99%+ accuracy for silent reading). Check seating and sensory environment.'},
+    {key:'monitor',title:'Self-monitoring and self-correction',desc:'Does the learner consistently notice meaning breakdown and attempt self-correction during oral reading?',rem:'Learner is not monitoring comprehension. Introduce fix-up strategies before Stage 5. Run stop-and-retell after every paragraph.'},
+    {key:'phrase',title:'Phrase-cued reading transfer',desc:'Reads pre-cued passage then same passage uncued, maintaining 80%+ of phrase chunking.',rem:'Return to phrase-cued reading with visual marks for 4 more weeks. Fade marks gradually: full marks → sentence boundary only → no marks.'},
+    {key:'acc',title:'Reading accuracy — 95%+ at current WCPM level',desc:'At the WCPM level reached, is accuracy still 95%+? Speed without accuracy is not fluency.',rem:'Learner is reading faster than their phonological system can handle. Step down one text level. Accuracy before speed.'},
+  ]},
+  {num:5,name:'Stage 5 → 6',ages:'Age 9–12',color:'#3B6D11',light:'#EAF3DE',
+   title:'Gate 5 — Comprehension exit',sub:'Conducted after 12 weeks of Stage 5 instruction',
+   primary:{key:'comp',title:'Independent comprehension — 75%+ on grade-appropriate text',desc:'Unseen text, full question set (literal, inferential, structural, evaluative). Target: 75%+ overall, 60%+ inferential.',
+    rem:'Identify failing comprehension domain: literal, inferential, or evaluative. Target reciprocal teaching on the failing domain. If inferential fails — return to inference equation. If literal fails — check vocabulary and reading accuracy.'},
+   secondary:[
+    {key:'write',title:'Written extended response — full argument with text evidence',desc:'Paragraph response to an inferential question: claim, evidence, counter-consideration.',rem:'Run 6 sessions on the specific missing component (claim, evidence, or reasoning). Use PEEL scaffold (Point, Evidence, Explanation, Link) before removing it.'},
+    {key:'struct',title:'Text structure identification — 4/5 correct with organiser',desc:'Present 5 short non-fiction passages. Learner identifies structure and selects graphic organiser.',rem:'Return to text structure mapping — one structure per week for the failing type. Inability to identify structure blocks summarising and prediction.'},
+    {key:'qar',title:'QAR metacognitive labelling — 8/10 correct',desc:'Label 10 comprehension questions with QAR category before answering.',rem:'Re-teach QAR explicitly with 20 labelling exercises before any comprehension questions. QAR failure is strategy awareness failure, not comprehension failure.'},
+    {key:'rt',title:'Reciprocal teaching — all 4 roles led independently',desc:'Learner leads a full RT session: predict, question, clarify, summarise on unseen text.',rem:'Return to tutor-led RT for 4 weeks then gradual release. "I do, we do, you do" structure before independent leadership.'},
+    {key:'author',title:'Author\'s purpose — PIE + evidence + absent voice',desc:'Identifies purpose with 2 language evidence examples, states whose perspective is missing.',rem:'Critical literacy requires decentring. Run perspective-taking activities: "Pretend you believe the opposite — write their argument."'},
+  ]},
+  {num:6,name:'Graduation',ages:'Age 12+',color:'#854F0B',light:'#FAEEDA',
+   title:'Gate 6 — ReadSmart graduation',sub:'Conducted at the end of Stage 6 — 12-week programme',
+   primary:{key:'present',title:'Personal reading project — oral presentation',desc:'Presents 12-week project: central question, 3+ texts, agreements/disagreements, synthesised personal position. Minimum 5 minutes.',
+    rem:'Synthesis absent — learner is summarising texts rather than synthesising across them. Return to five-step syntopical process. Run 3 additional syntopical sessions before re-presentation.'},
+   secondary:[
+    {key:'synth',title:'Written synthesis — intellectually independent 500–800 words',desc:'Claim + evidence from each text + genuine disagreements mapped + personal position not borrowed from any single source.',rem:'Written synthesis is failing. Provide a structured synthesis template and 4 additional writing sessions. The goal is intellectual independence, not length.'},
+    {key:'adler',title:'Analytical reading — Levels 2 and 3 on cold text',desc:'Inspection (5 min) then analytical reading (20 min) then three-question oral response on unseen text.',rem:'Practise Adler Level 2 on short articles before applying to books. Reading identity develops through manageable analytical successes.'},
+    {key:'craft',title:'Craft notebook — 10 techniques with imitation evidence',desc:'10 craft techniques documented, mentor examples present, imitation writing demonstrates deliberate use.',rem:'Revisit 4 mentor text sessions focusing on the notice-name-try protocol. Quality of imitation matters more than technique count.'},
+    {key:'socrat',title:'Socratic seminar — text-grounded participation with position change',desc:'Contributes 3+ text-grounded comments per session, changes position based on evidence at least once.',rem:'If only summarising rather than arguing: require every comment to reference a specific passage. Position change requires genuine openness — check psychological safety.'},
+    {key:'identity',title:'Reading identity — self-directed reader with next book named',desc:'Can name the next book they want to read independently. Identifies themselves as a reader.',rem:'Have an honest conversation about what reading could offer them personally before signing off. This is the most important graduation criterion.'},
+  ]},
+];
+
+async function init(){
+  const res=await fetch('/.netlify/functions/config');
+  const cfg=await res.json();
+  db=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
+  const {data:{session}}=await db.auth.getSession();
+  if(!session){window.location.href='index.html';return;}
+  currentUser=session.user;
+  await loadLearners();
+  renderGateGrid();
+}
+
+async function loadLearners(){
+  const {data}=await db.from('rs_learner_profiles').select('id,full_name,current_stage').eq('tutor_id',currentUser.id).order('full_name');
+  if(data){
+    learners=data;
+    const sel=document.getElementById('learner-select');
+    sel.innerHTML='<option value="">— Select a learner —</option>';
+    learners.forEach(l=>{
+      const opt=document.createElement('option');
+      opt.value=l.id;opt.textContent=l.full_name+' (Stage '+l.current_stage+')';
+      sel.appendChild(opt);
+    });
+  }
+}
+
+function renderGateGrid(){
+  document.getElementById('gate-grid').innerHTML=GATES.map((g,i)=>`
+    <div class="gate-tile" id="gt-${i}" onclick="selectGate(${i})">
+      <div class="gate-num" style="background:${g.light};color:${g.color}">${g.num===6?'★':g.num}</div>
+      <div class="gate-name">${g.name}</div>
+      <div class="gate-ages">${g.ages}</div>
+    </div>`).join('');
+}
+
+function selectGate(i){
+  document.querySelectorAll('.gate-tile').forEach(t=>t.classList.remove('active'));
+  document.getElementById('gt-'+i).classList.add('active');
+  selectedGate=GATES[i];
+}
+
+function startGate(){
+  const learnerId=document.getElementById('learner-select').value;
+  if(!learnerId){toast('Please select a learner.','error');return;}
+  if(!selectedGate){toast('Please select a gate.','error');return;}
+  selectedLearner=learners.find(l=>l.id===learnerId);
+  scores={};
+  renderGate();
+  show('screen-gate');
+}
+
+function renderGate(){
+  const g=selectedGate;
+  document.getElementById('gate-title').textContent=g.title;
+  document.getElementById('gate-sub').textContent=g.sub+' · Learner: '+selectedLearner.full_name;
+
+  // Primary criterion
+  const pk=g.primary.key;
+  document.getElementById('primary-criterion').innerHTML=`
+    <div class="crit-card primary">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:.2rem">
+        <div class="crit-label">Primary criterion</div>
+        <span class="primary-tag">Gate keeper</span>
+      </div>
+      <div class="crit-title">${g.primary.title}</div>
+      <div class="crit-desc">${g.primary.desc}</div>
+      <div class="score-row">
+        <button class="score-btn" onclick="setScore('${pk}',0,this)" id="sb-${pk}-0">0 — Not yet</button>
+        <button class="score-btn" onclick="setScore('${pk}',1,this)" id="sb-${pk}-1">1 — Emerging</button>
+        <button class="score-btn" onclick="setScore('${pk}',2,this)" id="sb-${pk}-2">2 — Secure / met</button>
+      </div>
+    </div>`;
+
+  // Secondary criteria
+  document.getElementById('secondary-criteria').innerHTML=g.secondary.map(c=>`
+    <div class="crit-card">
+      <div class="crit-label">Secondary criterion</div>
+      <div class="crit-title">${c.title}</div>
+      <div class="crit-desc">${c.desc}</div>
+      <div class="score-row">
+        <button class="score-btn" onclick="setScore('${c.key}',0,this)" id="sb-${c.key}-0">0 — Not yet</button>
+        <button class="score-btn" onclick="setScore('${c.key}',1,this)" id="sb-${c.key}-1">1 — Emerging</button>
+        <button class="score-btn" onclick="setScore('${c.key}',2,this)" id="sb-${c.key}-2">2 — Secure / met</button>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('decision-output').innerHTML='';
+}
+
+function setScore(key,val,btn){
+  scores[key]=val;
+  // Clear all buttons for this key
+  [0,1,2].forEach(v=>{
+    const b=document.getElementById('sb-'+key+'-'+v);
+    if(b)b.className='score-btn';
+  });
+  btn.classList.add('s'+val);
+  updateDecision();
+}
+
+function updateDecision(){
+  const g=selectedGate;
+  if(!g)return;
+  const primaryScore=scores[g.primary.key]??-1;
+  if(primaryScore===-1)return; // nothing scored yet
+
+  const secondaryKeys=g.secondary.map(c=>c.key);
+  const secondaryTotal=secondaryKeys.reduce((a,k)=>a+(scores[k]??0),0);
+  const secondaryMax=secondaryKeys.length*2;
+  const secondaryPct=Math.round((secondaryTotal/secondaryMax)*100);
+
+  let verdict,cls,titleText,subText,barColor;
+  if(primaryScore<2){
+    verdict='remediate';cls='decision-remediate';barColor='#E24B4A';
+    titleText='Remediate — primary criterion not met';
+    subText='The learner is not yet ready to progress. See the remediation plan below.';
+  } else if(secondaryPct<50){
+    verdict='hold';cls='decision-hold';barColor='#BA7517';
+    titleText='Hold — pass with monitoring plan';
+    subText='Gate passed but secondary weaknesses noted. Learner proceeds with targeted monitoring.';
+  } else {
+    verdict='pass';cls='decision-pass';barColor='#1D9E75';
+    titleText='Pass — proceed to next stage';
+    subText='All criteria met. The learner is ready for Stage '+(g.num+1 <= 6 ? g.num+1 : 'graduation')+'.';
+  }
+
+  const pct=primaryScore===2?Math.round(40+(secondaryPct*0.6)):Math.round(secondaryPct*0.4);
+
+  let remHtml='';
+  if(primaryScore<2){
+    remHtml=`<div class="rem-card"><strong>Remediation — ${g.primary.title}:</strong><br>${g.primary.rem}</div>`;
+  }
+  // Secondary weak items
+  g.secondary.forEach(c=>{
+    if((scores[c.key]??2)===0&&c.rem){
+      remHtml+=`<div class="rem-card" style="border-left-color:var(--amber);margin-top:.4rem"><strong>Monitor — ${c.title}:</strong><br>${c.rem}</div>`;
+    }
+  });
+
+  document.getElementById('decision-output').innerHTML=`
+    <div class="decision-box ${cls}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem">
+        <div style="font-size:16px;font-weight:600">${titleText}</div>
+        <div style="font-size:13px;opacity:.8">Gate ${g.num}</div>
+      </div>
+      <div style="font-size:13px;opacity:.85;margin-bottom:.6rem">${subText}</div>
+      <div style="font-size:12px;opacity:.7">Primary: ${primaryScore===2?'Met':'Not met'} &nbsp;·&nbsp; Secondary: ${secondaryPct}%</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${barColor}"></div></div>
+    </div>
+    ${remHtml}`;
+
+  window._verdict=verdict;
+  window._secondaryPct=secondaryPct;
+}
+
+async function saveGate(){
+  if(!selectedLearner||!selectedGate){toast('No learner or gate selected.','error');return;}
+  const verdict=window._verdict;
+  if(!verdict){toast('Please score the primary criterion first.','error');return;}
+
+  const {error}=await db.from('rs_gate_assessments').insert([{
+    learner_id:selectedLearner.id,
+    tutor_id:currentUser.id,
+    gate_number:selectedGate.num,
+    assessment_date:new Date().toISOString().split('T')[0],
+    scores:scores,
+    primary_criterion_met:scores[selectedGate.primary.key]===2,
+    verdict:verdict,
+    remediation_plan:verdict!=='pass'?selectedGate.primary.rem:null,
+  }]);
+
+  if(error){toast('Error saving: '+error.message,'error');return;}
+
+  // If pass — advance learner stage
+  if(verdict==='pass'&&selectedGate.num<6){
+    await db.from('rs_learner_profiles').update({current_stage:selectedGate.num+1}).eq('id',selectedLearner.id);
+    toast(selectedLearner.full_name+' passed Gate '+selectedGate.num+' and moved to Stage '+(selectedGate.num+1)+'.','success');
+  } else if(verdict==='pass'&&selectedGate.num===6){
+    toast(selectedLearner.full_name+' has graduated ReadSmart!','success');
+  } else {
+    toast('Gate '+selectedGate.num+' result saved — '+verdict+'.','success');
+  }
+  setTimeout(()=>window.location.href='index.html',2000);
+}
+
+function resetGate(){scores={};renderGate();document.getElementById('decision-output').innerHTML='';window._verdict=null;}
+function show(id){['screen-select','screen-gate'].forEach(s=>document.getElementById(s).classList.remove('active'));document.getElementById(id).classList.add('active');}
+function toast(msg,type=''){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show '+(type||'');setTimeout(()=>el.className='toast',3000);}
+
+init();
+</script>
+</body>
+</html>

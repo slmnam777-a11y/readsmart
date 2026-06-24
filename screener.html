@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReadSmart — Diagnostic Screener</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{--teal:#1D9E75;--teal-light:#E1F5EE;--teal-dark:#085041;--purple:#534AB7;--purple-light:#EEEDFE;--coral:#993C1D;--coral-light:#FAECE7;--blue:#185FA5;--blue-light:#E6F1FB;--amber:#BA7517;--amber-light:#FAEEDA;--red:#E24B4A;--red-light:#FCEBEB;--gray-900:#1a1a1a;--gray-700:#444441;--gray-500:#888780;--gray-300:#D3D1C7;--gray-100:#F1EFE8;--white:#fff;--radius:10px;--radius-sm:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:#f8f7f4;color:var(--gray-700);min-height:100vh;}
+.topbar{height:56px;background:var(--white);border-bottom:1px solid var(--gray-300);display:flex;align-items:center;padding:0 1.5rem;gap:1rem;position:sticky;top:0;z-index:100;}
+.topbar-logo{font-size:18px;font-weight:600;color:var(--teal);}
+.topbar-back{background:none;border:none;cursor:pointer;color:var(--gray-500);font-size:13px;display:flex;align-items:center;gap:5px;font-family:inherit;}
+.topbar-back:hover{color:var(--teal);}
+.topbar-sep{flex:1;}
+.main{max-width:760px;margin:0 auto;padding:2rem 1.5rem;}
+.page-title{font-size:22px;font-weight:600;color:var(--gray-900);margin-bottom:.25rem;}
+.page-sub{font-size:14px;color:var(--gray-500);margin-bottom:1.75rem;}
+.card{background:var(--white);border-radius:var(--radius);border:1px solid var(--gray-300);padding:1.25rem;margin-bottom:1rem;}
+.btn{padding:8px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .12s;display:inline-flex;align-items:center;gap:6px;border:none;}
+.btn-teal{background:var(--teal);color:var(--white);}
+.btn-teal:hover{background:var(--teal-dark);}
+.btn-outline{background:var(--white);color:var(--gray-700);border:1.5px solid var(--gray-300);}
+.btn-outline:hover{background:var(--gray-100);}
+.btn-lg{padding:11px 24px;font-size:15px;}
+.select-input{width:100%;padding:10px 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;background:var(--white);color:var(--gray-900);cursor:pointer;}
+.select-input:focus{outline:none;border-color:var(--teal);}
+/* Progress bar */
+.prog-track{height:6px;background:var(--gray-100);border-radius:3px;margin-bottom:1.5rem;}
+.prog-fill{height:6px;border-radius:3px;background:var(--teal);transition:width .4s;}
+.domain-label{font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem;}
+.domain-title{font-size:18px;font-weight:600;color:var(--gray-900);margin-bottom:.25rem;}
+.domain-sub{font-size:13px;color:var(--gray-500);margin-bottom:1.5rem;}
+/* Task cards */
+.task-card{background:var(--white);border:1px solid var(--gray-300);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:.75rem;}
+.task-title{font-size:14px;font-weight:600;color:var(--gray-900);margin-bottom:.2rem;display:flex;align-items:center;gap:8px;}
+.task-desc{font-size:13px;color:var(--gray-500);margin-bottom:.6rem;line-height:1.5;}
+.task-prompt{background:var(--gray-100);border-radius:var(--radius-sm);padding:.6rem 1rem;font-size:14px;color:var(--gray-900);line-height:1.6;margin-bottom:.75rem;font-style:italic;}
+.score-row{display:flex;gap:8px;flex-wrap:wrap;}
+.score-btn{padding:6px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--gray-300);background:transparent;cursor:pointer;font-size:13px;color:var(--gray-700);font-family:inherit;transition:all .15s;}
+.score-btn:hover{background:var(--gray-100);}
+.score-btn.s0{background:var(--red-light);border-color:var(--red);color:#791F1F;}
+.score-btn.s1{background:var(--amber-light);border-color:var(--amber);color:#633806;}
+.score-btn.s2{background:var(--teal-light);border-color:var(--teal);color:var(--teal-dark);}
+.flag-tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:var(--amber-light);color:#633806;border:1px solid var(--amber);font-weight:500;}
+.red-flag-tag{background:var(--red-light);color:#791F1F;border-color:var(--red);}
+.flag-note{font-size:12px;color:#633806;background:var(--amber-light);border:1px solid var(--amber);border-radius:var(--radius-sm);padding:.4rem .75rem;margin-top:.5rem;line-height:1.5;}
+.nav-row{display:flex;justify-content:space-between;align-items:center;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--gray-100);}
+/* Results */
+.result-domain{background:var(--white);border:1px solid var(--gray-300);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:.75rem;}
+.result-bar-track{height:8px;background:var(--gray-100);border-radius:4px;margin-top:.5rem;}
+.result-bar-fill{height:8px;border-radius:4px;transition:width .5s;}
+.verdict-box{border-radius:var(--radius);padding:1.25rem;margin-bottom:1rem;border:1px solid;}
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--gray-900);color:var(--white);padding:10px 18px;border-radius:var(--radius-sm);font-size:14px;z-index:9999;transform:translateY(80px);opacity:0;transition:all .25s;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{background:var(--teal);}
+.toast.error{background:var(--red);}
+#screen-select,#screen-domain,#screen-results{display:none;}
+#screen-select.active,#screen-domain.active,#screen-results.active{display:block;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <button class="topbar-back" onclick="window.location.href='index.html'">← Dashboard</button>
+  <div class="topbar-sep"></div>
+  <div class="topbar-logo">ReadSmart</div>
+</div>
+
+<div class="main">
+
+<!-- Screen 1: Select learner -->
+<div id="screen-select" class="active">
+  <div class="page-title">Diagnostic screener</div>
+  <div class="page-sub">Five domains · Ages 5 to adult · 15–20 minutes</div>
+  <div class="card">
+    <div style="font-size:15px;font-weight:600;color:var(--gray-900);margin-bottom:.75rem">Select a learner</div>
+    <div style="font-size:13px;color:var(--gray-500);margin-bottom:1rem">Choose the learner to assess. The screener results will be saved to their profile.</div>
+    <select class="select-input" id="learner-select" style="margin-bottom:1rem">
+      <option value="">— Select a learner —</option>
+    </select>
+    <div style="background:var(--gray-100);border-radius:var(--radius-sm);padding:1rem;font-size:13px;color:var(--gray-700);line-height:1.8;margin-bottom:1.25rem">
+      <strong>Scoring guide:</strong><br>
+      <span style="background:var(--red-light);color:#791F1F;padding:1px 8px;border-radius:5px;font-size:12px">0 — Not yet</span> &nbsp;
+      <span style="background:var(--amber-light);color:#633806;padding:1px 8px;border-radius:5px;font-size:12px">1 — Emerging</span> &nbsp;
+      <span style="background:var(--teal-light);color:var(--teal-dark);padding:1px 8px;border-radius:5px;font-size:12px">2 — Secure</span>
+    </div>
+    <button class="btn btn-teal btn-lg" onclick="startScreener()">Begin assessment →</button>
+  </div>
+</div>
+
+<!-- Screen 2: Domain assessment -->
+<div id="screen-domain">
+  <div style="font-size:12px;color:var(--gray-500);margin-bottom:.4rem" id="step-label"></div>
+  <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+  <div class="domain-label" id="domain-label"></div>
+  <div class="domain-title" id="domain-title"></div>
+  <div class="domain-sub" id="domain-sub"></div>
+  <div id="tasks-container"></div>
+  <div class="nav-row">
+    <button class="btn btn-outline" id="btn-back" onclick="prevDomain()">← Back</button>
+    <button class="btn btn-teal" id="btn-next" onclick="nextDomain()">Next domain →</button>
+  </div>
+</div>
+
+<!-- Screen 3: Results -->
+<div id="screen-results">
+  <div class="page-title">Assessment results</div>
+  <div class="page-sub" id="results-meta"></div>
+  <div id="verdict-box"></div>
+  <div id="results-domains"></div>
+  <div class="card" id="flags-card" style="margin-top:.5rem">
+    <div style="font-size:15px;font-weight:600;color:var(--gray-900);margin-bottom:.75rem">OT flags triggered</div>
+    <div id="flags-list"></div>
+  </div>
+  <div class="card">
+    <div style="font-size:15px;font-weight:600;color:var(--gray-900);margin-bottom:.5rem">Recommended starting stage</div>
+    <div id="rec-stage" style="font-size:14px;color:var(--gray-700);line-height:1.6"></div>
+  </div>
+  <div style="display:flex;gap:.75rem;margin-top:1.25rem">
+    <button class="btn btn-teal btn-lg" onclick="saveResults()">Save to learner profile →</button>
+    <button class="btn btn-outline" onclick="resetScreener()">New assessment</button>
+  </div>
+</div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let db, currentUser, learners=[], scores={}, currentDomain=0, selectedLearner=null;
+
+const DOMAINS=[
+  {id:'phono',label:'Domain 1',title:'Phonological awareness',sub:'All tasks are oral — no reading required. Say items clearly and at a natural pace.',tasks:[
+    {title:'Rhyme recognition',desc:'Say two words: do these rhyme? Use 10 pairs (cat/hat, dog/log, sun/fun, ball/call, ship/dip, red/bed, pan/man, cup/pup, fish/dish, boot/foot).',prompt:'"Cat and hat — do they rhyme?" Run 10 pairs. Record correct.',flag:null,flagSev:null},
+    {title:'Syllable segmenting',desc:'Ask the learner to clap syllables: butterfly (3), elephant (3), dog (1), rabbit (2), banana (3), caterpillar (4).',prompt:'"Clap the syllables in butterfly." Run 8 words (1–3 syllables).',flag:null,flagSev:null},
+    {title:'Initial sound identification',desc:'Say a word — learner names the first sound. Run 10 words.',prompt:'"What sound does SUN start with?" Run: sun, map, pin, fish, dog, net, rain, cup, leg, hat.',flag:null,flagSev:null},
+    {title:'Phoneme blending',desc:'Say sounds slowly with brief pause. Learner blends to whole word. Run 10 CVC words.',prompt:'/d/ /ɒ/ /g/ — what word? Run 10: cat, pin, hop, mud, leg, sit, run, tap, wet, big.',flag:'Blending failure after instruction is a core dyslexia marker. Flag for OT referral.',flagSev:'urgent'},
+    {title:'Phoneme segmentation',desc:'Learner taps one finger per sound. Run 10 CVC words.',prompt:'"Tap the sounds in SHIP." Run: ship, cat, pin, hop, mud, leg, sit, run, tap, wet.',flag:null,flagSev:null},
+    {title:'Phoneme deletion',desc:'Say a word then remove a sound. Run 10 items.',prompt:'"Say STOP. Now say it without the /s/." Run: stop→top, cat→at, slip→lip, clap→cap, meat→eat, frog→fog, plan→pan, best→est, chat→hat, flat→lat.',flag:'Cannot delete initial phonemes after instruction — Stage 1 gate criterion not met.',flagSev:'moderate'},
+  ]},
+  {id:'decode',label:'Domain 2',title:'Decoding and phonics',sub:'Present letter cards and word cards. Observe strategy — is the learner decoding or guessing from shape?',tasks:[
+    {title:'Letter–sound knowledge — Groups 1 & 2',desc:'Flash 12 letter cards: a s t i p n m d g o c k. Record correct sounds and hesitations.',prompt:'Flash each card. Learner names the sound. Note any that take more than 2 seconds.',flag:'Below 9/12 at age 6+ — structured OG phonics urgently needed.',flagSev:'urgent'},
+    {title:'CVC word reading',desc:'Present 10 CVC words on cards: sat, pin, hop, mud, leg, wig, fun, dot, run, bet.',prompt:'Read these words. Observe: is learner sounding out or guessing from shape?',flag:null,flagSev:null},
+    {title:'Nonsense word decoding',desc:'Present 8 nonsense words: vap, rit, mog, fep, dut, wib, nup, tav.',prompt:'Read these made-up words. Real readers can read words they have never seen.',flag:'Nonsense word failure with real-word success = sight-word memorisation strategy. Compensated dyslexia profile — red flag.',flagSev:'urgent'},
+    {title:'Consonant blends',desc:'Present 10 blend words: frog, clap, stop, drip, grip, fled, plan, step, swim, twin.',prompt:'Read: frog · clap · stop · drip · grip · fled · plan · step · swim · twin.',flag:null,flagSev:null},
+    {title:'Digraph reading',desc:'Present 10 digraph words: ship, chop, that, when, thin, shed, chin, whip, this, chat.',prompt:'Read: ship · chop · that · when · thin · shed · chin · whip · this · chat.',flag:'Consistent digraph errors — check auditory discrimination.',flagSev:'moderate'},
+  ]},
+  {id:'fluency',label:'Domain 3',title:'Reading fluency',sub:'Use an appropriate-level passage. The accuracy and pace of reading are both clinically significant.',tasks:[
+    {title:'Oral reading rate (WCPM)',desc:'Time a 1-minute oral reading of an appropriate passage. Count words read correctly.',prompt:'Read aloud for 1 minute. Count correct words per minute (WCPM).',flag:'Below 60 WCPM at Grade 2 level — fluency intervention needed.',flagSev:'moderate'},
+    {title:'Prosody and expression',desc:'Does the learner read with natural phrasing and expression, or word by word?',prompt:'Listen: does reading sound natural (like speech) or robotic (each word separate)?',flag:'Monotone word-by-word reading suggests decoding is still effortful — Stage 4 prosody work needed.',flagSev:'monitor'},
+    {title:'Self-correction behaviour',desc:'Does the learner notice and correct their own errors during reading?',prompt:'Note: does the learner go back and fix errors when something does not sound right?',flag:null,flagSev:null},
+    {title:'Reading stamina',desc:'Can the learner sustain focus for at least 5 minutes of continuous reading?',prompt:'Observe attention and stamina during a 5-minute reading session.',flag:'Early fatigue and fidgeting may indicate sensory or attention needs — OT flag.',flagSev:'monitor'},
+  ]},
+  {id:'comprehension',label:'Domain 4',title:'Reading comprehension',sub:'Read a short passage together, then ask questions. Do not allow re-reading during questions.',tasks:[
+    {title:'Literal recall',desc:'After a short passage, ask: What happened? Who was involved? Where did it take place?',prompt:'"Who was in the story? What did they do? Where did it happen?"',flag:null,flagSev:null},
+    {title:'Inference',desc:'Ask questions the text does not directly answer.',prompt:'"Why do you think the character felt sad? What do you think will happen next?"',flag:'Cannot infer from text — check vocabulary depth and background knowledge before concluding comprehension deficit.',flagSev:'monitor'},
+    {title:'Vocabulary in context',desc:'Present a sentence with an unfamiliar word. Can the learner use context to work out meaning?',prompt:'"The exhausted runner collapsed at the finish line." What does exhausted mean?',flag:null,flagSev:null},
+    {title:'Retelling and summarising',desc:'Ask the learner to retell the passage in their own words. Note sequence, detail, and conclusion.',prompt:'"Tell me the story in your own words — as if I have not read it."',flag:'Very thin retell with few details — language processing or memory concern. Check vocabulary depth separately.',flagSev:'monitor'},
+  ]},
+  {id:'ot',label:'Domain 5',title:'OT observation checklist',sub:'Observe throughout the session. This is not a test — it is a clinical observation. Record what you see.',tasks:[
+    {title:'Pencil grip and letter formation',desc:'Observe grip type, letter size, baseline adherence, and letter reversals (b/d, p/q) during a brief writing sample.',prompt:'Ask learner to write their name and 3 simple words. Observe grip, size, direction, reversals.',flag:'Atypical grip or persistent reversals after age 7 — OT referral recommended.',flagSev:'moderate'},
+    {title:'Visual tracking',desc:'Ask learner to track a moving finger left to right, and observe eye movement during reading.',prompt:'Does the learner skip lines, lose their place, or re-read the same line during oral reading?',flag:'Tracking difficulty — refer for vision screening and OT assessment.',flagSev:'moderate'},
+    {title:'Working memory (digit span)',desc:'Read 4–5 digit sequences. Ask learner to repeat forward, then backward.',prompt:'"Repeat: 7-2-9-4. Now backwards: 4-9-2-7." Try 3-digit then 4-digit then 5-digit.',flag:'Digit span below age expectation — working memory support needed. Note for intervention planning.',flagSev:'moderate'},
+    {title:'Attention and regulation',desc:'Observe self-regulation during the session: stays on task, needs frequent prompts, avoidance, emotional shutdown.',prompt:'Note: attention span, need for breaks, response to difficulty, emotional regulation during the session.',flag:'Significant avoidance or shutdown under reading pressure — sensory/emotional regulation concern. Refer if persistent.',flagSev:'monitor'},
+    {title:'Rapid automatised naming (RAN)',desc:'Show a row of 5 familiar colours. Ask learner to name them as fast as possible, repeatedly for 30 seconds.',prompt:'Show: red, blue, green, yellow, red, blue, green... Name them as fast as you can.',flag:'Slow RAN is one of the strongest predictors of reading difficulty — flag immediately regardless of other scores.',flagSev:'urgent'},
+  ]},
+];
+
+async function init(){
+  const res=await fetch('/.netlify/functions/config');
+  const cfg=await res.json();
+  db=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
+  const {data:{session}}=await db.auth.getSession();
+  if(!session){window.location.href='index.html';return;}
+  currentUser=session.user;
+  await loadLearners();
+}
+
+async function loadLearners(){
+  const {data}=await db.from('rs_learner_profiles').select('id,full_name,current_stage').eq('tutor_id',currentUser.id).order('full_name');
+  if(data){
+    learners=data;
+    const sel=document.getElementById('learner-select');
+    learners.forEach(l=>{
+      const opt=document.createElement('option');
+      opt.value=l.id; opt.textContent=l.full_name+' (Stage '+l.current_stage+')';
+      sel.appendChild(opt);
+    });
+  }
+}
+
+function startScreener(){
+  const sel=document.getElementById('learner-select').value;
+  if(!sel){toast('Please select a learner first.','error');return;}
+  selectedLearner=learners.find(l=>l.id===sel);
+  scores={};currentDomain=0;
+  show('screen-domain');
+  renderDomain();
+}
+
+function renderDomain(){
+  const d=DOMAINS[currentDomain];
+  document.getElementById('step-label').textContent='Domain '+(currentDomain+1)+' of '+DOMAINS.length;
+  document.getElementById('prog-fill').style.width=(((currentDomain)/DOMAINS.length)*100)+'%';
+  document.getElementById('domain-label').textContent=d.label+' of 5';
+  document.getElementById('domain-title').textContent=d.title;
+  document.getElementById('domain-sub').textContent=d.sub;
+  document.getElementById('btn-back').style.visibility=currentDomain===0?'hidden':'visible';
+  document.getElementById('btn-next').textContent=currentDomain===DOMAINS.length-1?'View results →':'Next domain →';
+
+  const container=document.getElementById('tasks-container');
+  container.innerHTML='';
+  d.tasks.forEach((t,i)=>{
+    const key=d.id+'_'+i;
+    const cur=scores[key]??-1;
+    const flagHtml=t.flag?`<span class="flag-tag ${t.flagSev==='urgent'?'red-flag-tag':''}">⚑ ${t.flagSev}</span>`:'';
+    const noteHtml=t.flag&&cur===0?`<div class="flag-note">⚠ ${t.flag}</div>`:'';
+    container.innerHTML+=`<div class="task-card" id="tc-${key}">
+      <div class="task-title">${t.title} ${flagHtml}</div>
+      <div class="task-desc">${t.desc}</div>
+      <div class="task-prompt">${t.prompt}</div>
+      <div class="score-row">
+        <button class="score-btn${cur===0?' s0':''}" onclick="setScore('${key}',0,this)">0 — Not yet</button>
+        <button class="score-btn${cur===1?' s1':''}" onclick="setScore('${key}',1,this)">1 — Emerging</button>
+        <button class="score-btn${cur===2?' s2':''}" onclick="setScore('${key}',2,this)">2 — Secure</button>
+      </div>
+      ${noteHtml}
+    </div>`;
+  });
+}
+
+function setScore(key,val,btn){
+  scores[key]=val;
+  const row=btn.parentElement;
+  row.querySelectorAll('.score-btn').forEach(b=>b.className='score-btn');
+  btn.classList.add('s'+val);
+  // Show/hide flag note
+  const d=DOMAINS[currentDomain];
+  const idx=parseInt(key.split('_')[1]);
+  const task=d.tasks[idx];
+  const card=document.getElementById('tc-'+key);
+  const existing=card.querySelector('.flag-note');
+  if(existing)existing.remove();
+  if(task.flag&&val===0){
+    const note=document.createElement('div');
+    note.className='flag-note';
+    note.textContent='⚠ '+task.flag;
+    card.appendChild(note);
+  }
+}
+
+function nextDomain(){
+  if(currentDomain<DOMAINS.length-1){currentDomain++;renderDomain();}
+  else showResults();
+}
+function prevDomain(){if(currentDomain>0){currentDomain--;renderDomain();}}
+
+function showResults(){
+  show('screen-results');
+  document.getElementById('results-meta').textContent=(selectedLearner?.full_name||'Learner')+' · '+new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+
+  // Calculate domain scores
+  const domainScores=DOMAINS.map(d=>{
+    const total=d.tasks.length*2;
+    const got=d.tasks.reduce((a,t,i)=>a+(scores[d.id+'_'+i]??0),0);
+    return{id:d.id,title:d.title,pct:Math.round((got/total)*100),got,total};
+  });
+
+  // Overall
+  const overall=Math.round(domainScores.reduce((a,d)=>a+d.pct,0)/domainScores.length);
+  const verdictEl=document.getElementById('verdict-box');
+  if(overall>=75){
+    verdictEl.className='verdict-box';
+    verdictEl.style.cssText='background:var(--teal-light);border-color:var(--teal);padding:1.25rem;border-radius:var(--radius);margin-bottom:1rem;border:1px solid;';
+    verdictEl.innerHTML=`<div style="font-size:16px;font-weight:600;color:var(--teal-dark)">Overall: Strong foundation (${overall}%)</div><div style="font-size:13px;color:var(--teal-dark);margin-top:.3rem">Learner demonstrates good foundational skills across most domains. See individual domain scores below.</div>`;
+  } else if(overall>=50){
+    verdictEl.style.cssText='background:var(--amber-light);border-color:var(--amber);padding:1.25rem;border-radius:var(--radius);margin-bottom:1rem;border:1px solid;';
+    verdictEl.innerHTML=`<div style="font-size:16px;font-weight:600;color:#633806">Overall: Emerging — targeted support needed (${overall}%)</div><div style="font-size:13px;color:#633806;margin-top:.3rem">Several skill areas need explicit instruction. Review domain scores to identify intervention priorities.</div>`;
+  } else {
+    verdictEl.style.cssText='background:var(--red-light);border-color:var(--red);padding:1.25rem;border-radius:var(--radius);margin-bottom:1rem;border:1px solid;';
+    verdictEl.innerHTML=`<div style="font-size:16px;font-weight:600;color:#791F1F">Overall: Significant gaps — intensive support required (${overall}%)</div><div style="font-size:13px;color:#791F1F;margin-top:.3rem">Multiple foundational skills are not yet in place. Intensive structured literacy instruction recommended. Review OT flags below.</div>`;
+  }
+
+  // Domain breakdown
+  const domsEl=document.getElementById('results-domains');
+  domsEl.innerHTML=domainScores.map(d=>{
+    const col=d.pct>=75?'#1D9E75':d.pct>=50?'#BA7517':'#E24B4A';
+    const lbl=d.pct>=75?'Secure':d.pct>=50?'Emerging':'Needs support';
+    return`<div class="result-domain">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:14px;font-weight:500;color:var(--gray-900)">${d.title}</div>
+        <div style="font-size:13px;font-weight:600;color:${col}">${d.pct}% — ${lbl}</div>
+      </div>
+      <div style="font-size:12px;color:var(--gray-500);margin-top:2px">${d.got} / ${d.total} points</div>
+      <div class="result-bar-track"><div class="result-bar-fill" style="width:${d.pct}%;background:${col}"></div></div>
+    </div>`;
+  }).join('');
+
+  // OT flags triggered
+  const flagsEl=document.getElementById('flags-list');
+  const triggeredFlags=[];
+  DOMAINS.forEach(d=>{
+    d.tasks.forEach((t,i)=>{
+      if(t.flag&&(scores[d.id+'_'+i]??2)===0) triggeredFlags.push({task:t,domain:d.title});
+    });
+  });
+  if(!triggeredFlags.length){
+    flagsEl.innerHTML='<div style="font-size:13px;color:var(--gray-500)">No critical flags triggered.</div>';
+  } else {
+    flagsEl.innerHTML=triggeredFlags.map(f=>`
+      <div style="display:flex;align-items:flex-start;gap:8px;padding:.5rem 0;border-bottom:1px solid var(--gray-100)">
+        <span class="flag-tag ${f.task.flagSev==='urgent'?'red-flag-tag':''}" style="flex-shrink:0;margin-top:2px">${f.task.flagSev}</span>
+        <div style="font-size:13px;color:var(--gray-700);line-height:1.5">${f.task.flag}</div>
+      </div>`).join('');
+  }
+
+  // Recommended stage
+  const phonoPct=domainScores.find(d=>d.id==='phono')?.pct||0;
+  const decodePct=domainScores.find(d=>d.id==='decode')?.pct||0;
+  const fluencyPct=domainScores.find(d=>d.id==='fluency')?.pct||0;
+  const compPct=domainScores.find(d=>d.id==='comprehension')?.pct||0;
+  let recStage=1, recReason='';
+  if(phonoPct<50){recStage=1;recReason='Phonological awareness skills are not yet secure. Begin at Stage 1.';}
+  else if(decodePct<50){recStage=2;recReason='Phonological awareness is emerging but decoding skills need explicit instruction. Begin at Stage 2.';}
+  else if(fluencyPct<50){recStage=3;recReason='Decoding is emerging. Focus on word recognition and spelling patterns at Stage 3.';}
+  else if(fluencyPct<75){recStage=4;recReason='Decoding is established. Fluency automaticity needs building at Stage 4.';}
+  else if(compPct<60){recStage=5;recReason='Fluency is good. Comprehension strategy instruction is the priority at Stage 5.';}
+  else{recStage=6;recReason='Strong across all foundational domains. Begin analytical reading development at Stage 6.';}
+
+  document.getElementById('rec-stage').innerHTML=`<strong>Stage ${recStage} — ${['Phonological foundation','Decoding and phonics','Word recognition and spelling','Reading fluency','Reading comprehension','Exceptional reader'][recStage-1]}</strong><br><span style="font-size:13px;color:var(--gray-500)">${recReason}</span>`;
+  window._recStage=recStage;
+  window._domainScores=domainScores;
+  window._triggeredFlags=triggeredFlags;
+}
+
+async function saveResults(){
+  if(!selectedLearner){toast('No learner selected.','error');return;}
+  const recStage=window._recStage||1;
+  const triggeredFlags=window._triggeredFlags||[];
+
+  // Update learner stage
+  await db.from('rs_learner_profiles').update({
+    current_stage:recStage,
+    dyslexia_flag_level: triggeredFlags.some(f=>f.task.flagSev==='urgent')?'urgent':
+                         triggeredFlags.some(f=>f.task.flagSev==='moderate')?'moderate':
+                         triggeredFlags.length?'monitor':'none',
+  }).eq('id',selectedLearner.id);
+
+  // Save screener as a session
+  const {data:sess}=await db.from('rs_sessions').insert([{
+    learner_id:selectedLearner.id,
+    tutor_id:currentUser.id,
+    stage:selectedLearner.current_stage,
+    session_date:new Date().toISOString().split('T')[0],
+    session_type:'assessment',
+    notes:`Diagnostic screener completed. Recommended stage: ${recStage}. Overall score: ${Math.round((window._domainScores||[]).reduce((a,d)=>a+d.pct,0)/(window._domainScores||[{pct:0}]).length)}%.`,
+    rating:'good',
+    ot_flags_raised:triggeredFlags.length>0,
+  }]).select().single();
+
+  // Save OT flags
+  for(const f of triggeredFlags.filter(f=>f.task.flagSev==='urgent'||f.task.flagSev==='moderate')){
+    await db.from('rs_ot_flags').insert([{
+      learner_id:selectedLearner.id,
+      raised_by:currentUser.id,
+      flag_type:f.task.flagSev,
+      flag_category:'screener_'+f.domain.toLowerCase().replace(/\s/g,'_'),
+      description:f.task.flag,
+      actioned:false,
+      session_id:sess?.id||null,
+    }]);
+  }
+
+  toast('Results saved to '+selectedLearner.full_name+'\u2019s profile.','success');
+  setTimeout(()=>window.location.href='index.html',1800);
+}
+
+function resetScreener(){scores={};currentDomain=0;selectedLearner=null;document.getElementById('learner-select').value='';show('screen-select');}
+function show(id){['screen-select','screen-domain','screen-results'].forEach(s=>document.getElementById(s).classList.remove('active'));document.getElementById(id).classList.add('active');}
+function toast(msg,type=''){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show '+(type||'');setTimeout(()=>el.className='toast',3000);}
+
+init();
+</script>
+</body>
+</html>
