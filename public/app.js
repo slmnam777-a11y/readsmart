@@ -4,12 +4,12 @@
 // ─────────────────────────────────────────────
 
 // Supabase config is fetched from the Netlify function — keys never hardcoded in client
-let supabase;
+let db;
 
 async function initSupabase() {
   const res = await fetch('/.netlify/functions/config');
   const cfg = await res.json();
-  supabase = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+  db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
 }
 
 // ─── State ────────────────────────────────────
@@ -45,7 +45,7 @@ const FLAG_CAT_LABELS = {
 // ─── Init ─────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
   await initSupabase();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await db.auth.getSession();
   if (session) {
     currentUser = session.user;
     showApp();
@@ -67,7 +67,7 @@ async function login() {
 
   if (!email || !pw) { showAuthError('Please enter your email and password.'); return; }
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password: pw });
+  const { data, error } = await db.auth.signInWithPassword({ email, password: pw });
   if (error) { showAuthError(error.message); return; }
 
   currentUser = data.user;
@@ -80,7 +80,7 @@ function showAuthError(msg) {
 }
 
 async function logout() {
-  await supabase.auth.signOut();
+  await db.auth.signOut();
   currentUser = null; currentLearner = null; learners = [];
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
@@ -111,7 +111,7 @@ function navTo(pageId, btn) {
 
 // ─── Learner data ─────────────────────────────
 async function loadLearners() {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('rs_learner_profiles')
     .select('*, rs_ot_flags(id, flag_type, actioned), rs_sessions(id, session_date)')
     .eq('tutor_id', currentUser.id)
@@ -130,7 +130,7 @@ async function addLearner() {
 
   if (!name) { toast('Please enter a learner name.', 'error'); return; }
 
-  const { data, error } = await supabase.from('rs_learner_profiles').insert([{
+  const { data, error } = await db.from('rs_learner_profiles').insert([{
     tutor_id: currentUser.id,
     full_name: name,
     date_of_birth: dob || null,
@@ -257,7 +257,7 @@ async function openProfile(learnerId) {
   currentLearner = learner;
 
   // Load full data for this learner
-  const { data: fullData } = await supabase
+  const { data: fullData } = await db
     .from('rs_learner_profiles')
     .select('*, rs_sessions(*), rs_ot_flags(*)')
     .eq('id', learnerId)
@@ -388,7 +388,7 @@ async function addSession() {
   const rating = document.getElementById('sess-rating').value;
   const notes = document.getElementById('sess-notes').value.trim();
 
-  const { error } = await supabase.from('rs_sessions').insert([{
+  const { error } = await db.from('rs_sessions').insert([{
     learner_id: currentLearner.id,
     tutor_id: currentUser.id,
     stage: currentLearner.current_stage,
@@ -420,7 +420,7 @@ async function addFlag() {
 
   if (!desc) { toast('Please describe what you observed.', 'error'); return; }
 
-  const { error } = await supabase.from('rs_ot_flags').insert([{
+  const { error } = await db.from('rs_ot_flags').insert([{
     learner_id: currentLearner.id,
     raised_by: currentUser.id,
     flag_type: severity,
@@ -439,7 +439,7 @@ async function addFlag() {
 }
 
 async function actionFlag(flagId) {
-  const { error } = await supabase.from('rs_ot_flags').update({ actioned: true }).eq('id', flagId);
+  const { error } = await db.from('rs_ot_flags').update({ actioned: true }).eq('id', flagId);
   if (error) { toast('Error updating flag.', 'error'); return; }
   await openProfile(currentLearner.id);
   await loadLearners();
@@ -452,7 +452,7 @@ async function promoteStage() {
   const next = currentLearner.current_stage + 1;
   if (!confirm(`Move ${currentLearner.full_name} to Stage ${next} — ${STAGES[next-1].name}?`)) return;
 
-  const { error } = await supabase.from('rs_learner_profiles')
+  const { error } = await db.from('rs_learner_profiles')
     .update({ current_stage: next }).eq('id', currentLearner.id);
 
   if (error) { toast('Error updating stage.', 'error'); return; }
