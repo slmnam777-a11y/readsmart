@@ -9,7 +9,14 @@ let db;
 async function initSupabase() {
   const res = await fetch('/.netlify/functions/config');
   const cfg = await res.json();
-  db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+  db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storageKey: 'readsmart-auth',
+    }
+  });
 }
 
 // ─── State ────────────────────────────────────
