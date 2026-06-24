@@ -52,6 +52,22 @@ const FLAG_CAT_LABELS = {
 // ─── Init ─────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
   await initSupabase();
+
+  // Handle password reset token in URL hash
+  const hash = window.location.hash;
+  if (hash.includes('type=recovery')) {
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('form-signin').style.display = 'none';
+    document.getElementById('form-newpass').style.display = 'block';
+    // Exchange the token
+    const params = new URLSearchParams(hash.replace('#', '?'));
+    const accessToken = params.get('access_token');
+    if (accessToken) {
+      await db.auth.setSession({ access_token: accessToken, refresh_token: params.get('refresh_token') || '' });
+    }
+    return;
+  }
+
   const { data: { session } } = await db.auth.getSession();
   if (session) {
     currentUser = session.user;
@@ -92,6 +108,43 @@ async function logout() {
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('auth-password').value = '';
+}
+
+// ─── Forgot password ─────────────────────────
+function showForgot() {
+  document.getElementById('form-signin').style.display = 'none';
+  document.getElementById('form-forgot').style.display = 'block';
+  document.getElementById('auth-error').style.display = 'none';
+}
+function showSignin() {
+  document.getElementById('form-forgot').style.display = 'none';
+  document.getElementById('form-newpass').style.display = 'none';
+  document.getElementById('form-signin').style.display = 'block';
+}
+
+async function sendReset() {
+  const email = document.getElementById('reset-email').value.trim();
+  if (!email) { showAuthError('Please enter your email address.'); return; }
+  const { error } = await db.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://readsmart.metanoia-learn.com',
+  });
+  if (error) { showAuthError(error.message); return; }
+  const s = document.getElementById('auth-success');
+  s.textContent = 'Reset link sent to ' + email + '. Check your inbox.';
+  s.style.display = 'block';
+  document.getElementById('form-forgot').style.display = 'none';
+}
+
+async function updatePassword() {
+  const pw = document.getElementById('new-password').value;
+  if (!pw || pw.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
+  const { error } = await db.auth.updateUser({ password: pw });
+  if (error) { showAuthError(error.message); return; }
+  const s = document.getElementById('auth-success');
+  s.textContent = 'Password updated! Signing you in...';
+  s.style.display = 'block';
+  document.getElementById('form-newpass').style.display = 'none';
+  setTimeout(() => showApp(), 1500);
 }
 
 // ─── App shell ────────────────────────────────
