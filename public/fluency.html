@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReadSmart — Fluency Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{--teal:#1D9E75;--teal-light:#E1F5EE;--teal-dark:#085041;--purple:#534AB7;--purple-light:#EEEDFE;--coral:#993C1D;--coral-light:#FAECE7;--blue:#185FA5;--blue-light:#E6F1FB;--amber:#BA7517;--amber-light:#FAEEDA;--red:#E24B4A;--red-light:#FCEBEB;--gray-900:#1a1a1a;--gray-700:#444441;--gray-500:#888780;--gray-300:#D3D1C7;--gray-100:#F1EFE8;--white:#fff;--radius:10px;--radius-sm:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:#f8f7f4;color:var(--gray-700);min-height:100vh;}
+.topbar{height:56px;background:var(--white);border-bottom:1px solid var(--gray-300);display:flex;align-items:center;padding:0 1.5rem;gap:1rem;position:sticky;top:0;z-index:100;}
+.topbar-logo{font-size:18px;font-weight:600;color:var(--teal);}
+.topbar-back{background:none;border:none;cursor:pointer;color:var(--gray-500);font-size:13px;display:flex;align-items:center;gap:5px;font-family:inherit;}
+.topbar-back:hover{color:var(--teal);}
+.topbar-sep{flex:1;}
+.main{max-width:800px;margin:0 auto;padding:2rem 1.5rem;}
+.page-title{font-size:22px;font-weight:600;color:var(--gray-900);margin-bottom:.25rem;}
+.page-sub{font-size:14px;color:var(--gray-500);margin-bottom:1.75rem;}
+.card{background:var(--white);border-radius:var(--radius);border:1px solid var(--gray-300);padding:1.25rem;margin-bottom:1rem;}
+.btn{padding:8px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .12s;display:inline-flex;align-items:center;gap:6px;border:none;}
+.btn-teal{background:var(--teal);color:var(--white);}
+.btn-teal:hover{background:var(--teal-dark);}
+.btn-outline{background:var(--white);color:var(--gray-700);border:1.5px solid var(--gray-300);}
+.btn-outline:hover{background:var(--gray-100);}
+.select-input{width:100%;padding:10px 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;background:var(--white);color:var(--gray-900);cursor:pointer;}
+.select-input:focus{outline:none;border-color:var(--teal);}
+.form-input{width:100%;padding:10px 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;background:var(--white);color:var(--gray-900);}
+.form-input:focus{outline:none;border-color:var(--teal);}
+.form-label{font-size:12px;font-weight:500;color:var(--gray-700);margin-bottom:5px;display:block;}
+.form-group{margin-bottom:.85rem;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;}
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1.25rem;}
+.stat-box{background:var(--white);border:1px solid var(--gray-300);border-radius:var(--radius);padding:.85rem 1rem;}
+.stat-val{font-size:24px;font-weight:600;color:var(--gray-900);}
+.stat-lbl{font-size:11px;color:var(--gray-500);margin-top:2px;}
+/* Chart */
+.chart-area{background:var(--white);border:1px solid var(--gray-300);border-radius:var(--radius);padding:1.25rem;margin-bottom:1rem;}
+.chart-bars{display:flex;align-items:flex-end;gap:4px;height:140px;border-bottom:1px solid var(--gray-300);padding-bottom:4px;margin-bottom:.5rem;overflow-x:auto;}
+.chart-bar-wrap{display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;max-width:48px;}
+.chart-bar-val{font-size:10px;color:var(--gray-500);margin-bottom:2px;}
+.chart-bar{width:100%;border-radius:3px 3px 0 0;transition:height .4s;}
+.chart-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--gray-500);}
+/* MFS */
+.mfs-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem;margin:.75rem 0;}
+.mfs-row{background:var(--gray-100);border-radius:var(--radius-sm);padding:.75rem;}
+.mfs-label{font-size:12px;font-weight:500;color:var(--gray-700);margin-bottom:.5rem;}
+.mfs-btns{display:flex;gap:4px;}
+.mfs-btn{flex:1;padding:5px 0;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);background:var(--white);cursor:pointer;font-size:12px;font-weight:500;color:var(--gray-500);text-align:center;transition:all .12s;}
+.mfs-btn:hover{background:var(--gray-100);}
+.mfs-btn.sel{background:var(--teal);border-color:var(--teal);color:var(--white);}
+/* Records list */
+.reading-entry{background:var(--white);border:1px solid var(--gray-300);border-radius:var(--radius-sm);padding:.85rem 1rem;margin-bottom:.5rem;display:flex;align-items:center;gap:12px;}
+.reading-wcpm{font-size:20px;font-weight:600;color:var(--gray-900);min-width:48px;}
+.reading-meta{flex:1;}
+.reading-date{font-size:12px;color:var(--gray-500);}
+.reading-text{font-size:13px;color:var(--gray-700);}
+.reading-bar-wrap{flex:1;height:8px;background:var(--gray-100);border-radius:4px;}
+.reading-bar-fill{height:8px;border-radius:4px;transition:width .4s;}
+.status-pill{font-size:11px;padding:2px 9px;border-radius:8px;font-weight:500;flex-shrink:0;}
+.on-track{background:var(--teal-light);color:var(--teal-dark);}
+.below{background:var(--amber-light);color:#633806;}
+/* Benchmark strip */
+.benchmark-row{display:flex;align-items:center;gap:10px;padding:.4rem 0;font-size:13px;}
+.bench-label{min-width:70px;color:var(--gray-500);font-size:12px;}
+.bench-bar{flex:1;height:6px;background:var(--gray-100);border-radius:3px;}
+.bench-fill{height:6px;border-radius:3px;background:var(--teal);}
+.bench-val{font-size:12px;color:var(--gray-500);min-width:120px;}
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--gray-900);color:var(--white);padding:10px 18px;border-radius:var(--radius-sm);font-size:14px;z-index:9999;transform:translateY(80px);opacity:0;transition:all .25s;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{background:var(--teal);}
+.toast.error{background:var(--red);}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <button class="topbar-back" onclick="window.location.href='index.html'">← Dashboard</button>
+  <div class="topbar-sep"></div>
+  <div class="topbar-logo">ReadSmart</div>
+</div>
+
+<div class="main">
+<div class="page-title">Fluency tracker</div>
+<div class="page-sub">Track WCPM progress and prosody ratings across all learners</div>
+
+<div class="card">
+  <div style="font-size:15px;font-weight:600;color:var(--gray-900);margin-bottom:.75rem">Select learner</div>
+  <select class="select-input" id="learner-select" onchange="loadLearnerData()" style="margin-bottom:0"></select>
+</div>
+
+<div id="learner-panel" style="display:none">
+
+  <!-- Stats row -->
+  <div class="stats-row">
+    <div class="stat-box"><div class="stat-val" id="stat-latest">—</div><div class="stat-lbl">Latest WCPM</div></div>
+    <div class="stat-box"><div class="stat-val" id="stat-best">—</div><div class="stat-lbl">Personal best</div></div>
+    <div class="stat-box"><div class="stat-val" id="stat-gain">—</div><div class="stat-lbl">Total gain</div></div>
+    <div class="stat-box"><div class="stat-val" id="stat-count">0</div><div class="stat-lbl">Readings logged</div></div>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-area">
+    <div style="font-size:14px;font-weight:500;color:var(--gray-900);margin-bottom:.75rem">WCPM progress</div>
+    <div class="chart-bars" id="chart-bars"><div style="font-size:13px;color:var(--gray-500);margin:auto">No readings yet</div></div>
+    <div class="chart-labels"><span>First reading</span><span>Most recent</span></div>
+  </div>
+
+  <!-- Add reading form -->
+  <div class="card">
+    <div style="font-size:15px;font-weight:600;color:var(--gray-900);margin-bottom:1rem">Log a reading</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-input" type="date" id="f-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Words correct per minute (WCPM)</label>
+        <input class="form-input" type="number" id="f-wcpm" placeholder="e.g. 72" min="0" max="300">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Read number</label>
+        <select class="select-input" id="f-read" style="margin-bottom:0">
+          <option value="1">Read 1 — cold read</option>
+          <option value="2">Read 2 — previewed</option>
+          <option value="3">Read 3 — expression focus</option>
+          <option value="0">Monthly benchmark</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Accuracy %</label>
+        <input class="form-input" type="number" id="f-acc" placeholder="e.g. 96" min="0" max="100">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Passage / text level</label>
+        <input class="form-input" id="f-passage" placeholder="e.g. Stage 2 decodable reader — Level A">
+      </div>
+    </div>
+
+    <!-- MFS Prosody Rating -->
+    <div style="font-size:14px;font-weight:500;color:var(--gray-900);margin:.25rem 0 .5rem">Prosody rating (MFS) — optional</div>
+    <div class="mfs-grid">
+      <div class="mfs-row">
+        <div class="mfs-label">Expression and volume</div>
+        <div class="mfs-btns" id="mfs-exp">
+          <button class="mfs-btn" onclick="setMFS('exp',1,this)">1</button>
+          <button class="mfs-btn" onclick="setMFS('exp',2,this)">2</button>
+          <button class="mfs-btn" onclick="setMFS('exp',3,this)">3</button>
+          <button class="mfs-btn" onclick="setMFS('exp',4,this)">4</button>
+        </div>
+      </div>
+      <div class="mfs-row">
+        <div class="mfs-label">Phrasing and smoothness</div>
+        <div class="mfs-btns" id="mfs-phrase">
+          <button class="mfs-btn" onclick="setMFS('phrase',1,this)">1</button>
+          <button class="mfs-btn" onclick="setMFS('phrase',2,this)">2</button>
+          <button class="mfs-btn" onclick="setMFS('phrase',3,this)">3</button>
+          <button class="mfs-btn" onclick="setMFS('phrase',4,this)">4</button>
+        </div>
+      </div>
+      <div class="mfs-row">
+        <div class="mfs-label">Pace</div>
+        <div class="mfs-btns" id="mfs-pace">
+          <button class="mfs-btn" onclick="setMFS('pace',1,this)">1</button>
+          <button class="mfs-btn" onclick="setMFS('pace',2,this)">2</button>
+          <button class="mfs-btn" onclick="setMFS('pace',3,this)">3</button>
+          <button class="mfs-btn" onclick="setMFS('pace',4,this)">4</button>
+        </div>
+      </div>
+      <div class="mfs-row">
+        <div class="mfs-label">Punctuation adherence</div>
+        <div class="mfs-btns" id="mfs-punct">
+          <button class="mfs-btn" onclick="setMFS('punct',1,this)">1</button>
+          <button class="mfs-btn" onclick="setMFS('punct',2,this)">2</button>
+          <button class="mfs-btn" onclick="setMFS('punct',3,this)">3</button>
+          <button class="mfs-btn" onclick="setMFS('punct',4,this)">4</button>
+        </div>
+      </div>
+    </div>
+    <div id="mfs-composite" style="font-size:13px;color:var(--gray-500);margin-bottom:.75rem"></div>
+
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <input class="form-input" id="f-notes" placeholder="Prosody observations, stamina, self-correction behaviour…">
+    </div>
+    <button class="btn btn-teal" onclick="addReading()">Save reading</button>
+  </div>
+
+  <!-- Readings list -->
+  <div class="card">
+    <div style="font-size:15px;font-weight:600;color:var(--gray-900);margin-bottom:.75rem">Reading history</div>
+    <div id="readings-list"><div style="font-size:13px;color:var(--gray-500)">No readings logged yet.</div></div>
+  </div>
+
+  <!-- Benchmarks -->
+  <div class="card">
+    <div style="font-size:14px;font-weight:500;color:var(--gray-900);margin-bottom:.75rem">WCPM stage benchmarks</div>
+    <div class="benchmark-row"><div class="bench-label">Stage 1</div><div class="bench-bar"><div class="bench-fill" style="width:5%"></div></div><div class="bench-val">Oral only — no target</div></div>
+    <div class="benchmark-row"><div class="bench-label">Stage 2</div><div class="bench-bar"><div class="bench-fill" style="width:15%"></div></div><div class="bench-val">20–40 WCPM</div></div>
+    <div class="benchmark-row"><div class="bench-label">Stage 3</div><div class="bench-bar"><div class="bench-fill" style="width:35%"></div></div><div class="bench-val">40–70 WCPM</div></div>
+    <div class="benchmark-row"><div class="bench-label">Stage 4</div><div class="bench-bar"><div class="bench-fill" style="width:55%"></div></div><div class="bench-val">70–100 WCPM</div></div>
+    <div class="benchmark-row"><div class="bench-label">Stage 5</div><div class="bench-bar"><div class="bench-fill" style="width:78%"></div></div><div class="bench-val">100–140 WCPM</div></div>
+    <div class="benchmark-row"><div class="bench-label">Stage 6</div><div class="bench-bar"><div class="bench-fill" style="width:100%"></div></div><div class="bench-val">140+ WCPM</div></div>
+  </div>
+
+</div><!-- /learner-panel -->
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let db, currentUser, learners=[], readings=[], mfsScores={exp:0,phrase:0,pace:0,punct:0};
+const READ_LABELS={1:'Cold read',2:'Previewed',3:'Expression',0:'Benchmark'};
+const STAGE_TARGETS=[0,30,55,85,120,140];
+
+async function init(){
+  const res=await fetch('/.netlify/functions/config');
+  const cfg=await res.json();
+  db=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey,{
+    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+  });
+    // Auth check - try getSession multiple times before giving up
+  let session = null;
+  for (let i = 0; i < 5; i++) {
+    const { data } = await db.auth.getSession();
+    if (data.session) { session = data.session; break; }
+    await new Promise(r => setTimeout(r, 400));
+  }
+  if (!session) { window.location.href = 'index.html'; return; }
+  currentUser = session.user;
+  await loadLearners();
+  document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
+}
+
+async function loadLearners(){
+  const {data}=await db.from('rs_learner_profiles').select('id,full_name,current_stage').eq('tutor_id',currentUser.id).order('full_name');
+  if(data){
+    learners=data;
+    const sel=document.getElementById('learner-select');
+    sel.innerHTML='<option value="">— Select a learner —</option>';
+    learners.forEach(l=>{
+      const opt=document.createElement('option');
+      opt.value=l.id;opt.textContent=l.full_name+' (Stage '+l.current_stage+')';
+      sel.appendChild(opt);
+    });
+  }
+}
+
+async function loadLearnerData(){
+  const id=document.getElementById('learner-select').value;
+  if(!id){document.getElementById('learner-panel').style.display='none';return;}
+  document.getElementById('learner-panel').style.display='block';
+
+  const {data}=await db.from('rs_fluency_records').select('*').eq('learner_id',id).order('reading_date',{ascending:true});
+  readings=data||[];
+  renderStats();
+  renderChart();
+  renderReadings();
+}
+
+function renderStats(){
+  const n=readings.length;
+  document.getElementById('stat-count').textContent=n;
+  if(!n){['stat-latest','stat-best','stat-gain'].forEach(id=>document.getElementById(id).textContent='—');return;}
+  const latest=readings[n-1].wcpm;
+  const best=Math.max(...readings.map(r=>r.wcpm));
+  const first=readings[0].wcpm;
+  document.getElementById('stat-latest').textContent=latest;
+  document.getElementById('stat-best').textContent=best;
+  document.getElementById('stat-gain').textContent=(latest-first>=0?'+':'')+(latest-first);
+}
+
+function renderChart(){
+  const el=document.getElementById('chart-bars');
+  if(!readings.length){el.innerHTML='<div style="font-size:13px;color:var(--gray-500);margin:auto">No readings yet</div>';return;}
+  const max=Math.max(...readings.map(r=>r.wcpm),100);
+  const learner=learners.find(l=>l.id===document.getElementById('learner-select').value);
+  const target=STAGE_TARGETS[Math.min((learner?.current_stage||1)-1,5)];
+  el.innerHTML=readings.slice(-20).map(r=>{
+    const h=Math.round((r.wcpm/max)*120);
+    const onTrack=r.wcpm>=target;
+    const col=onTrack?'#1D9E75':r.wcpm>=(target*0.75)?'#185FA5':'#BA7517';
+    const dt=new Date(r.reading_date+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+    return`<div class="chart-bar-wrap" title="${dt}: ${r.wcpm} WCPM">
+      <div class="chart-bar-val">${r.wcpm}</div>
+      <div class="chart-bar" style="height:${h}px;background:${col}"></div>
+    </div>`;
+  }).join('');
+}
+
+function renderReadings(){
+  const el=document.getElementById('readings-list');
+  if(!readings.length){el.innerHTML='<div style="font-size:13px;color:var(--gray-500)">No readings logged yet.</div>';return;}
+  const learner=learners.find(l=>l.id===document.getElementById('learner-select').value);
+  const target=STAGE_TARGETS[Math.min((learner?.current_stage||1)-1,5)];
+  el.innerHTML=[...readings].reverse().map(r=>{
+    const dt=new Date(r.reading_date+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    const pct=Math.min(Math.round((r.wcpm/180)*100),100);
+    const onTrack=r.wcpm>=target;
+    const mfs=[r.mfs_expression,r.mfs_phrasing,r.mfs_pace,r.mfs_punctuation].filter(Boolean);
+    const mfsAvg=mfs.length?( mfs.reduce((a,b)=>a+b,0)/mfs.length).toFixed(1):'—';
+    return`<div class="reading-entry">
+      <div class="reading-wcpm">${r.wcpm}</div>
+      <div class="reading-meta">
+        <div class="reading-date">${dt} · ${READ_LABELS[r.read_number]||'Read'} ${r.accuracy_pct?'· '+r.accuracy_pct+'% accuracy':''} ${mfsAvg!=='—'?'· MFS '+mfsAvg:''}</div>
+        <div class="reading-text">${r.passage_title||''}</div>
+        ${r.notes?`<div style="font-size:12px;color:var(--gray-500);margin-top:2px">${r.notes}</div>`:''}
+      </div>
+      <div style="min-width:100px">
+        <div class="reading-bar-wrap"><div class="reading-bar-fill" style="width:${pct}%;background:${onTrack?'#1D9E75':'#BA7517'}"></div></div>
+      </div>
+      <span class="status-pill ${onTrack?'on-track':'below'}">${onTrack?'On track':'Below target'}</span>
+    </div>`;
+  }).join('');
+}
+
+function setMFS(dim,val,btn){
+  mfsScores[dim]=val;
+  btn.parentElement.querySelectorAll('.mfs-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+  const vals=Object.values(mfsScores).filter(v=>v>0);
+  const comp=document.getElementById('mfs-composite');
+  if(vals.length===4){
+    const avg=(vals.reduce((a,b)=>a+b,0)/4).toFixed(1);
+    const interp=avg>=3?'Functional fluency — approaching gate':'Developing — continued prosody work needed';
+    comp.textContent='MFS composite: '+avg+'/4.0 — '+interp;
+    comp.style.color=avg>=3?'var(--teal-dark)':'#633806';
+  } else {
+    comp.textContent='Rate all 4 dimensions for composite score';
+    comp.style.color='var(--gray-500)';
+  }
+}
+
+async function addReading(){
+  const learnerId=document.getElementById('learner-select').value;
+  if(!learnerId){toast('Select a learner first.','error');return;}
+  const wcpm=parseInt(document.getElementById('f-wcpm').value)||0;
+  if(!wcpm){toast('Enter a WCPM score.','error');return;}
+  const date=document.getElementById('f-date').value;
+  const readNum=parseInt(document.getElementById('f-read').value);
+  const acc=document.getElementById('f-acc').value;
+  const passage=document.getElementById('f-passage').value.trim();
+  const notes=document.getElementById('f-notes').value.trim();
+  const mfs=mfsScores;
+
+  const {error}=await db.from('rs_fluency_records').insert([{
+    learner_id:learnerId,
+    reading_date:date,
+    wcpm,
+    accuracy_pct:acc?parseFloat(acc):null,
+    read_number:readNum,
+    mfs_expression:mfs.exp||null,
+    mfs_phrasing:mfs.phrase||null,
+    mfs_pace:mfs.pace||null,
+    mfs_punctuation:mfs.punct||null,
+    passage_title:passage||null,
+    notes:notes||null,
+  }]);
+
+  if(error){toast('Error saving: '+error.message,'error');return;}
+
+  // Reset form
+  document.getElementById('f-wcpm').value='';
+  document.getElementById('f-acc').value='';
+  document.getElementById('f-passage').value='';
+  document.getElementById('f-notes').value='';
+  document.querySelectorAll('.mfs-btn').forEach(b=>b.classList.remove('sel'));
+  mfsScores={exp:0,phrase:0,pace:0,punct:0};
+  document.getElementById('mfs-composite').textContent='';
+
+  await loadLearnerData();
+  toast('Reading saved.','success');
+}
+
+function toast(msg,type=''){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show '+(type||'');setTimeout(()=>el.className='toast',3000);}
+init();
+</script>
+</body>
+</html>
