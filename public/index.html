@@ -378,6 +378,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     <button class="nav-item" onclick="window.location.href='fluency.html'">
       <span class="nav-icon">◷</span> Fluency tracker
     </button>
+    <button class="nav-item" onclick="navTo('activities', this)">
+      <span class="nav-icon">◉</span> Activity library
+    </button>
     <div class="nav-section">Account</div>
     <button class="nav-item" onclick="navTo('settings', this)">
       <span class="nav-icon">◫</span> Settings
@@ -504,17 +507,23 @@ textarea.form-input { resize: vertical; min-height: 80px; }
       </div>
     </div>
 
-    <!-- Activity library placeholder -->
+    <!-- Activity library -->
     <div class="page" id="page-activities">
       <div class="page-title">Activity library</div>
-      <div class="page-sub">All ReadSmart activities across all six stages</div>
-      <div class="card">
-        <div class="empty-state">
-          <div class="empty-icon">◷</div>
-          <div class="empty-title">Activity library coming soon</div>
-          <div class="empty-sub">Full stage 1–6 activity library with scripts, materials, and OT notes</div>
-        </div>
+      <div class="page-sub">All ReadSmart activities — Stages 1–6 · Full tutor scripts · OT notes · Mastery criteria</div>
+
+      <!-- Stage filter tabs -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.25rem" id="act-stage-tabs">
+        <button class="act-tab active" onclick="filterActivities(0,this)" style="padding:6px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;border:1.5px solid var(--teal);background:var(--teal-light);color:var(--teal-dark)">All stages</button>
+        <button class="act-tab" onclick="filterActivities(1,this)" style="padding:6px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;border:1.5px solid var(--gray-300);background:var(--white);color:var(--gray-700)">Stage 1</button>
+        <button class="act-tab" onclick="filterActivities(2,this)" style="padding:6px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;border:1.5px solid var(--gray-300);background:var(--white);color:var(--gray-700)">Stage 2</button>
+        <button class="act-tab" onclick="filterActivities(3,this)" style="padding:6px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;border:1.5px solid var(--gray-300);background:var(--white);color:var(--gray-700)">Stage 3</button>
+        <button class="act-tab" onclick="filterActivities(4,this)" style="padding:6px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;border:1.5px solid var(--gray-300);background:var(--white);color:var(--gray-700)">Stage 4</button>
+        <button class="act-tab" onclick="filterActivities(5,this)" style="padding:6px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;border:1.5px solid var(--gray-300);background:var(--white);color:var(--gray-700)">Stage 5</button>
+        <button class="act-tab" onclick="filterActivities(6,this)" style="padding:6px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;border:1.5px solid var(--gray-300);background:var(--white);color:var(--gray-700)">Stage 6</button>
       </div>
+
+      <div id="act-library-grid"></div>
     </div>
 
     <!-- Settings -->
