@@ -1,570 +1,610 @@
-// ─────────────────────────────────────────────
-//  ReadSmart — app.js
-//  Supabase client + all UI logic
-// ─────────────────────────────────────────────
-
-// Supabase config is fetched from the Netlify function — keys never hardcoded in client
-let db;
-
-async function initSupabase() {
-  const res = await fetch('/.netlify/functions/config');
-  const cfg = await res.json();
-  db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      storageKey: 'readsmart-auth',
-    }
-  });
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReadSmart — Tutor Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root {
+  --teal: #1D9E75;
+  --teal-light: #E1F5EE;
+  --teal-dark: #085041;
+  --purple: #534AB7;
+  --purple-light: #EEEDFE;
+  --coral: #993C1D;
+  --coral-light: #FAECE7;
+  --blue: #185FA5;
+  --blue-light: #E6F1FB;
+  --amber: #BA7517;
+  --amber-light: #FAEEDA;
+  --red: #E24B4A;
+  --red-light: #FCEBEB;
+  --gray-900: #1a1a1a;
+  --gray-700: #444441;
+  --gray-500: #888780;
+  --gray-300: #D3D1C7;
+  --gray-100: #F1EFE8;
+  --white: #ffffff;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --radius: 10px;
+  --radius-sm: 6px;
 }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: #f8f7f4; color: var(--gray-700); min-height: 100vh; }
 
-// ─── State ────────────────────────────────────
-let currentUser = null;
-let currentLearner = null;
-let learners = [];
-
-// ─── Stage metadata ───────────────────────────
-const STAGES = [
-  { num: 1, name: 'Phonological foundation', ages: 'Ages 5–6', cls: 's1', color: '#1D9E75' },
-  { num: 2, name: 'Decoding and phonics',    ages: 'Ages 6–7', cls: 's2', color: '#534AB7' },
-  { num: 3, name: 'Word recognition',         ages: 'Ages 7–8', cls: 's3', color: '#993C1D' },
-  { num: 4, name: 'Reading fluency',           ages: 'Ages 8–10', cls: 's4', color: '#185FA5' },
-  { num: 5, name: 'Comprehension',             ages: 'Ages 9–12', cls: 's5', color: '#3B6D11' },
-  { num: 6, name: 'Exceptional reader',        ages: 'Ages 12+',  cls: 's6', color: '#854F0B' },
-];
-
-const SESSION_TYPE_LABELS = {
-  teaching: 'Teaching', review: 'Review', assessment: 'Assessment',
-  gate: 'Gate', flag: 'OT flag'
-};
-const RATING_LABELS = {
-  great: 'Great session', good: 'Good progress', mixed: 'Mixed', difficult: 'Difficult'
-};
-const FLAG_CAT_LABELS = {
-  phonological_blend: 'Phonological blending',
-  ran: 'Slow RAN', nonsense_word: 'Nonsense word failure',
-  reversal: 'Letter reversals', tracking: 'Visual tracking',
-  working_memory: 'Working memory', avoidance: 'Reading avoidance',
-  family_history: 'Family history', fine_motor: 'Fine motor', other: 'Other'
-};
-
-// ─── Init ─────────────────────────────────────
-window.addEventListener('DOMContentLoaded', async () => {
-  await initSupabase();
-
-  // Handle password reset token in URL hash
-  const hash = window.location.hash;
-  if (hash.includes('type=recovery')) {
-    document.getElementById('auth-screen').style.display = 'flex';
-    document.getElementById('form-signin').style.display = 'none';
-    document.getElementById('form-newpass').style.display = 'block';
-    // Exchange the token
-    const params = new URLSearchParams(hash.replace('#', '?'));
-    const accessToken = params.get('access_token');
-    if (accessToken) {
-      await db.auth.setSession({ access_token: accessToken, refresh_token: params.get('refresh_token') || '' });
-    }
-    return;
-  }
-
-  const { data: { session } } = await db.auth.getSession();
-  if (session) {
-    currentUser = session.user;
-    showApp();
-  } else {
-    document.getElementById('auth-screen').style.display = 'flex';
-  }
-
-  // Set today's date on date inputs
-  const today = new Date().toISOString().split('T')[0];
-  document.getElementById('sess-date').value = today;
-});
-
-// ─── Auth ─────────────────────────────────────
-async function login() {
-  const email = document.getElementById('auth-email').value.trim();
-  const pw = document.getElementById('auth-password').value;
-  const errEl = document.getElementById('auth-error');
-  errEl.style.display = 'none';
-
-  if (!email || !pw) { showAuthError('Please enter your email and password.'); return; }
-
-  const { data, error } = await db.auth.signInWithPassword({ email, password: pw });
-  if (error) { showAuthError(error.message); return; }
-
-  currentUser = data.user;
-  showApp();
+/* ─── Auth ─── */
+#auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--teal-light) 0%, #f8f7f4 60%);
 }
-
-function showAuthError(msg) {
-  const el = document.getElementById('auth-error');
-  el.textContent = msg; el.style.display = 'block';
+.auth-card {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
 }
-
-async function logout() {
-  await db.auth.signOut();
-  currentUser = null; currentLearner = null; learners = [];
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('auth-screen').style.display = 'flex';
-  document.getElementById('auth-password').value = '';
+.auth-logo { font-size: 28px; font-weight: 600; color: var(--teal); margin-bottom: 4px; }
+.auth-sub { font-size: 14px; color: var(--gray-500); margin-bottom: 2rem; }
+.form-label { font-size: 13px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px; display: block; }
+.form-input {
+  width: 100%; padding: 10px 14px;
+  border: 1.5px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  font-size: 15px; font-family: inherit;
+  background: var(--white); color: var(--gray-900);
+  transition: border-color .15s;
+  margin-bottom: 1rem;
 }
-
-// ─── Forgot password ─────────────────────────
-function showForgot() {
-  document.getElementById('form-signin').style.display = 'none';
-  document.getElementById('form-forgot').style.display = 'block';
-  document.getElementById('auth-error').style.display = 'none';
+.form-input:focus { outline: none; border-color: var(--teal); }
+.btn-primary {
+  width: 100%; padding: 11px;
+  background: var(--teal); color: var(--white);
+  border: none; border-radius: var(--radius-sm);
+  font-size: 15px; font-weight: 500;
+  cursor: pointer; transition: background .15s;
 }
-function showSignin() {
-  document.getElementById('form-forgot').style.display = 'none';
-  document.getElementById('form-newpass').style.display = 'none';
-  document.getElementById('form-signin').style.display = 'block';
+.btn-primary:hover { background: var(--teal-dark); }
+.auth-error { background: var(--red-light); color: var(--red); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; margin-bottom: 1rem; display: none; }
+
+/* ─── App Shell ─── */
+#app { display: none; }
+.topbar {
+  height: 56px; background: var(--white);
+  border-bottom: 1px solid var(--gray-300);
+  display: flex; align-items: center;
+  padding: 0 1.5rem; gap: 1rem;
+  position: sticky; top: 0; z-index: 100;
 }
-
-async function sendReset() {
-  const email = document.getElementById('reset-email').value.trim();
-  if (!email) { showAuthError('Please enter your email address.'); return; }
-  const { error } = await db.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://readsmart.metanoia-learn.com',
-  });
-  if (error) { showAuthError(error.message); return; }
-  const s = document.getElementById('auth-success');
-  s.textContent = 'Reset link sent to ' + email + '. Check your inbox.';
-  s.style.display = 'block';
-  document.getElementById('form-forgot').style.display = 'none';
+.topbar-logo { font-size: 18px; font-weight: 600; color: var(--teal); }
+.topbar-sep { flex: 1; }
+.topbar-user { font-size: 13px; color: var(--gray-500); }
+.topbar-logout {
+  font-size: 13px; color: var(--gray-500);
+  background: none; border: none; cursor: pointer;
+  padding: 6px 12px; border-radius: var(--radius-sm);
 }
+.topbar-logout:hover { background: var(--gray-100); }
 
-async function updatePassword() {
-  const pw = document.getElementById('new-password').value;
-  if (!pw || pw.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
-  const { error } = await db.auth.updateUser({ password: pw });
-  if (error) { showAuthError(error.message); return; }
-  const s = document.getElementById('auth-success');
-  s.textContent = 'Password updated! Signing you in...';
-  s.style.display = 'block';
-  document.getElementById('form-newpass').style.display = 'none';
-  setTimeout(() => showApp(), 1500);
+.sidebar {
+  position: fixed; left: 0; top: 56px; bottom: 0;
+  width: 220px; background: var(--white);
+  border-right: 1px solid var(--gray-300);
+  padding: 1.25rem 0; overflow-y: auto;
 }
-
-// ─── App shell ────────────────────────────────
-async function showApp() {
-  document.getElementById('auth-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  document.getElementById('topbar-user').textContent = currentUser.email;
-  document.getElementById('settings-email').textContent = currentUser.email;
-  document.getElementById('dash-sub').textContent = 'Welcome back, ' + (currentUser.email.split('@')[0]);
-  await loadLearners();
-  renderDashboard();
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 1.25rem; font-size: 14px; color: var(--gray-700);
+  cursor: pointer; transition: all .12s; border-left: 3px solid transparent;
+  background: none; border-top: none; border-right: none; border-bottom: none;
+  width: 100%; text-align: left;
 }
+.nav-item:hover { background: var(--gray-100); }
+.nav-item.active { color: var(--teal); border-left-color: var(--teal); background: var(--teal-light); font-weight: 500; }
+.nav-icon { font-size: 17px; width: 20px; text-align: center; }
+.nav-section { font-size: 11px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: .06em; padding: 1rem 1.25rem .4rem; }
 
-// ─── Navigation ───────────────────────────────
-function navTo(pageId, btn) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-  document.getElementById('page-' + pageId)?.classList.add('active');
-  if (btn) btn.classList.add('active');
+.main { margin-left: 220px; padding: 2rem; min-height: calc(100vh - 56px); }
+.page { display: none; }
+.page.active { display: block; }
+.page-title { font-size: 22px; font-weight: 600; color: var(--gray-900); margin-bottom: .25rem; }
+.page-sub { font-size: 14px; color: var(--gray-500); margin-bottom: 1.75rem; }
 
-  if (pageId === 'dashboard') renderDashboard();
-  if (pageId === 'learners') renderLearnerGrid();
+/* ─── Cards ─── */
+.card {
+  background: var(--white); border-radius: var(--radius);
+  border: 1px solid var(--gray-300); padding: 1.25rem;
+  box-shadow: var(--shadow);
 }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.75rem; }
+.stat-card { background: var(--white); border-radius: var(--radius); border: 1px solid var(--gray-300); padding: 1.1rem 1.25rem; }
+.stat-val { font-size: 28px; font-weight: 600; color: var(--gray-900); }
+.stat-lbl { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
 
-// ─── Learner data ─────────────────────────────
-async function loadLearners() {
-  const { data, error } = await db
-    .from('rs_learner_profiles')
-    .select('*, rs_ot_flags(id, flag_type, actioned), rs_sessions(id, session_date)')
-    .eq('tutor_id', currentUser.id)
-    .order('created_at', { ascending: false });
-
-  if (!error && data) learners = data;
+/* ─── Stage badges ─── */
+.stage-badge {
+  display: inline-block; padding: 2px 10px;
+  border-radius: 20px; font-size: 11px; font-weight: 600;
 }
+.s1 { background: var(--teal-light); color: var(--teal-dark); }
+.s2 { background: var(--purple-light); color: var(--purple); }
+.s3 { background: var(--coral-light); color: var(--coral); }
+.s4 { background: var(--blue-light); color: var(--blue); }
+.s5 { background: #EAF3DE; color: #27500A; }
+.s6 { background: var(--amber-light); color: var(--amber); }
 
-async function addLearner() {
-  const name = document.getElementById('new-name').value.trim();
-  const dob = document.getElementById('new-dob').value;
-  const stage = parseInt(document.getElementById('new-stage').value);
-  const lang = document.getElementById('new-lang').value.trim();
-  const eal = document.getElementById('new-eal').value === 'true';
-  const notes = document.getElementById('new-notes').value.trim();
-
-  if (!name) { toast('Please enter a learner name.', 'error'); return; }
-
-  const { data, error } = await db.from('rs_learner_profiles').insert([{
-    tutor_id: currentUser.id,
-    full_name: name,
-    date_of_birth: dob || null,
-    current_stage: stage,
-    language_primary: lang || 'English',
-    eal_flag: eal,
-    programme_notes: notes || null,
-    entry_date: new Date().toISOString().split('T')[0],
-  }]).select().single();
-
-  if (error) { toast('Error adding learner: ' + error.message, 'error'); return; }
-
-  // Clear form
-  ['new-name','new-lang','new-notes'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('new-dob').value = '';
-  document.getElementById('new-stage').value = '1';
-  document.getElementById('new-eal').value = 'false';
-
-  closeModal('modal-add-learner');
-  await loadLearners();
-  renderLearnerGrid();
-  renderDashboard();
-  toast(name + ' added successfully.', 'success');
+/* ─── Learner list ─── */
+.learner-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+.learner-card {
+  background: var(--white); border: 1px solid var(--gray-300);
+  border-radius: var(--radius); padding: 1.1rem 1.25rem;
+  cursor: pointer; transition: border-color .12s, box-shadow .12s;
+  box-shadow: var(--shadow);
 }
+.learner-card:hover { border-color: var(--teal); box-shadow: 0 2px 12px rgba(29,158,117,.12); }
+.learner-header { display: flex; align-items: center; gap: 10px; margin-bottom: .75rem; }
+.avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--teal-light); display: flex; align-items: center;
+  justify-content: center; font-size: 15px; font-weight: 600;
+  color: var(--teal-dark); flex-shrink: 0;
+}
+.learner-name { font-size: 15px; font-weight: 500; color: var(--gray-900); }
+.learner-meta { font-size: 12px; color: var(--gray-500); margin-top: 1px; }
+.learner-footer { display: flex; align-items: center; justify-content: space-between; margin-top: .75rem; padding-top: .75rem; border-top: 1px solid var(--gray-100); }
+.flag-dot { width: 8px; height: 8px; border-radius: 50%; }
+.flag-red { background: var(--red); }
+.flag-amber { background: var(--amber); }
+.flag-green { background: var(--teal); }
 
-// ─── Dashboard ────────────────────────────────
-function renderDashboard() {
-  document.getElementById('stat-learners').textContent = learners.length;
+/* ─── Buttons ─── */
+.btn {
+  padding: 8px 16px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  font-family: inherit; transition: all .12s; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-teal { background: var(--teal); color: var(--white); border: none; }
+.btn-teal:hover { background: var(--teal-dark); }
+.btn-outline { background: var(--white); color: var(--gray-700); border: 1.5px solid var(--gray-300); }
+.btn-outline:hover { background: var(--gray-100); }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
 
-  // Sessions this week
-  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-  const weekSessions = learners.reduce((acc, l) => {
-    return acc + (l.rs_sessions || []).filter(s => new Date(s.session_date) >= weekAgo).length;
-  }, 0);
-  document.getElementById('stat-sessions').textContent = weekSessions;
+/* ─── Modal ─── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+  z-index: 1000; display: none; align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--white); border-radius: 14px;
+  padding: 1.75rem; width: 100%; max-width: 520px;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+}
+.modal-title { font-size: 18px; font-weight: 600; color: var(--gray-900); margin-bottom: 1.25rem; }
+.modal-footer { display: flex; gap: .75rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--gray-100); }
+.select-input {
+  width: 100%; padding: 10px 14px;
+  border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm);
+  font-size: 14px; font-family: inherit; background: var(--white); color: var(--gray-900);
+  margin-bottom: 1rem; cursor: pointer;
+}
+.select-input:focus { outline: none; border-color: var(--teal); }
+textarea.form-input { resize: vertical; min-height: 80px; }
 
-  // Unactioned flags
-  const flags = learners.reduce((acc, l) => {
-    return acc + (l.rs_ot_flags || []).filter(f => !f.actioned).length;
-  }, 0);
-  document.getElementById('stat-flags').textContent = flags;
-  document.getElementById('stat-gates').textContent = '—';
+/* ─── Learner profile ─── */
+.profile-header {
+  background: var(--white); border: 1px solid var(--gray-300);
+  border-radius: var(--radius); padding: 1.5rem;
+  display: flex; align-items: center; gap: 1.25rem;
+  margin-bottom: 1.25rem; box-shadow: var(--shadow);
+}
+.profile-avatar {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--teal-light); display: flex; align-items: center;
+  justify-content: center; font-size: 22px; font-weight: 600; color: var(--teal-dark);
+}
+.profile-name { font-size: 20px; font-weight: 600; color: var(--gray-900); }
+.profile-meta { font-size: 13px; color: var(--gray-500); margin-top: 3px; }
+.profile-actions { margin-left: auto; display: flex; gap: .5rem; }
 
-  // Recent learners (last 5)
-  const recentEl = document.getElementById('recent-learners-list');
-  if (!learners.length) {
-    recentEl.innerHTML = '<div class="empty-state" style="padding:1.5rem"><div class="empty-sub">No learners yet — add your first learner to get started.</div></div>';
-  } else {
-    recentEl.innerHTML = learners.slice(0, 5).map(l => `
-      <div style="display:flex;align-items:center;gap:10px;padding:.6rem 0;border-bottom:1px solid var(--gray-100);cursor:pointer" onclick="openProfile('${l.id}')">
-        <div class="avatar" style="width:34px;height:34px;font-size:13px">${initials(l.full_name)}</div>
-        <div style="flex:1">
-          <div style="font-size:14px;font-weight:500;color:var(--gray-900)">${l.full_name}</div>
-          <div style="font-size:12px;color:var(--gray-500)">${STAGES[l.current_stage-1]?.name || ''}</div>
+.tabs { display: flex; gap: 4px; margin-bottom: 1.25rem; border-bottom: 1px solid var(--gray-300); }
+.tab-btn {
+  padding: 8px 16px; font-size: 13px; color: var(--gray-500);
+  border: none; background: none; cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  font-family: inherit; font-weight: 500;
+}
+.tab-btn.active { color: var(--teal); border-bottom-color: var(--teal); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ─── Stage progress ─── */
+.stage-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: .85rem 1rem; border-radius: var(--radius-sm);
+  margin-bottom: .5rem; border: 1px solid var(--gray-300);
+  background: var(--white);
+}
+.stage-row.current { border-color: var(--teal); background: var(--teal-light); }
+.stage-row.complete { opacity: .7; }
+.stage-circle {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 600; flex-shrink: 0;
+}
+.progress-bar { height: 6px; background: var(--gray-100); border-radius: 3px; flex: 1; }
+.progress-fill { height: 6px; border-radius: 3px; background: var(--teal); transition: width .4s; }
+
+/* ─── Session log ─── */
+.session-entry {
+  padding: .85rem 1rem; border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm); margin-bottom: .5rem;
+  background: var(--white);
+}
+.session-date { font-size: 12px; color: var(--gray-500); margin-bottom: .25rem; }
+.session-note { font-size: 14px; color: var(--gray-700); line-height: 1.5; }
+.session-tags { display: flex; gap: 6px; margin-top: .5rem; flex-wrap: wrap; }
+.session-tag {
+  font-size: 11px; padding: 2px 8px; border-radius: 10px;
+  background: var(--gray-100); color: var(--gray-500); font-weight: 500;
+}
+.tag-great { background: var(--teal-light); color: var(--teal-dark); }
+.tag-mixed { background: var(--amber-light); color: var(--amber); }
+.tag-difficult { background: var(--red-light); color: var(--red); }
+.tag-flag { background: var(--amber-light); color: var(--amber); }
+
+/* ─── OT flags ─── */
+.flag-card {
+  padding: .85rem 1rem; border-radius: var(--radius-sm);
+  margin-bottom: .5rem; border-left: 3px solid;
+}
+.flag-urgent { border-color: var(--red); background: var(--red-light); }
+.flag-moderate { border-color: var(--amber); background: var(--amber-light); }
+.flag-monitor { border-color: var(--teal); background: var(--teal-light); }
+.flag-title { font-size: 13px; font-weight: 600; color: var(--gray-900); margin-bottom: .2rem; }
+.flag-desc { font-size: 12px; color: var(--gray-700); line-height: 1.5; }
+
+/* ─── Toast ─── */
+.toast {
+  position: fixed; bottom: 1.5rem; right: 1.5rem;
+  background: var(--gray-900); color: var(--white);
+  padding: 10px 18px; border-radius: var(--radius-sm);
+  font-size: 14px; z-index: 9999;
+  transform: translateY(80px); opacity: 0;
+  transition: all .25s; pointer-events: none;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { background: var(--teal); }
+.toast.error { background: var(--red); }
+
+/* ─── Empty state ─── */
+.empty-state { text-align: center; padding: 3rem 1rem; color: var(--gray-500); }
+.empty-icon { font-size: 40px; margin-bottom: .75rem; }
+.empty-title { font-size: 16px; font-weight: 500; color: var(--gray-700); margin-bottom: .4rem; }
+.empty-sub { font-size: 14px; }
+
+/* ─── Misc ─── */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.section-title { font-size: 15px; font-weight: 600; color: var(--gray-900); }
+.divider { height: 1px; background: var(--gray-100); margin: 1rem 0; }
+.back-btn { background: none; border: none; cursor: pointer; color: var(--gray-500); font-size: 13px; display: inline-flex; align-items: center; gap: 5px; margin-bottom: .75rem; padding: 0; font-family: inherit; }
+.back-btn:hover { color: var(--teal); }
+
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; padding: 1rem; }
+  .learner-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">ReadSmart</div>
+    <div class="auth-sub">Tutor portal — Metanoia Academy</div>
+    <div class="auth-error" id="auth-error"></div>
+    <label class="form-label">Email address</label>
+    <input class="form-input" type="email" id="auth-email" placeholder="tutor@example.com" autocomplete="email">
+    <label class="form-label">Password</label>
+    <input class="form-input" type="password" id="auth-password" placeholder="Password" autocomplete="current-password">
+    <button class="btn-primary" onclick="login()">Sign in</button>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div id="app">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-logo">ReadSmart</div>
+    <div class="topbar-sep"></div>
+    <div class="topbar-user" id="topbar-user"></div>
+    <button class="topbar-logout" onclick="logout()">Sign out</button>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="nav-section">Overview</div>
+    <button class="nav-item active" onclick="navTo('dashboard', this)">
+      <span class="nav-icon">⊞</span> Dashboard
+    </button>
+    <button class="nav-item" onclick="navTo('learners', this)">
+      <span class="nav-icon">◎</span> Learners
+    </button>
+    <div class="nav-section">Tools</div>
+    <button class="nav-item" onclick="window.location.href='screener.html'">
+      <span class="nav-icon">◈</span> Diagnostic screener</span>
+    </button>
+    <button class="nav-item" onclick="window.location.href='gates.html'">
+      <span class="nav-icon">⬡</span> Gate assessments
+    </button>
+    <button class="nav-item" onclick="window.location.href='fluency.html'">
+      <span class="nav-icon">◷</span> Activity library
+    </button>
+    <div class="nav-section">Account</div>
+    <button class="nav-item" onclick="navTo('settings', this)">
+      <span class="nav-icon">◫</span> Settings
+    </button>
+  </div>
+
+  <!-- Main content -->
+  <div class="main">
+
+    <!-- Dashboard -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub" id="dash-sub">Welcome back</div>
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card"><div class="stat-val" id="stat-learners">—</div><div class="stat-lbl">Active learners</div></div>
+        <div class="stat-card"><div class="stat-val" id="stat-sessions">—</div><div class="stat-lbl">Sessions this week</div></div>
+        <div class="stat-card"><div class="stat-val" id="stat-flags">—</div><div class="stat-lbl">Unactioned OT flags</div></div>
+        <div class="stat-card"><div class="stat-val" id="stat-gates">—</div><div class="stat-lbl">Gates due this month</div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="section-header">
+          <div class="section-title">Recent learners</div>
+          <button class="btn btn-outline btn-sm" onclick="navTo('learners', document.querySelector('[onclick*=learners]'))">View all</button>
         </div>
-        <span class="stage-badge s${l.current_stage}">Stage ${l.current_stage}</span>
-      </div>
-    `).join('');
-  }
-
-  // Dashboard flags
-  const urgentFlags = [];
-  learners.forEach(l => {
-    (l.rs_ot_flags || []).filter(f => !f.actioned && f.flag_type === 'urgent').forEach(f => {
-      urgentFlags.push({ learner: l.full_name, learnerId: l.id, flag: f });
-    });
-  });
-  const flagsEl = document.getElementById('dash-flags-list');
-  if (!urgentFlags.length) {
-    flagsEl.innerHTML = '<div class="empty-state" style="padding:1rem"><div class="empty-sub">No urgent unactioned flags.</div></div>';
-  } else {
-    flagsEl.innerHTML = urgentFlags.slice(0, 5).map(item => `
-      <div class="flag-card flag-urgent" style="cursor:pointer" onclick="openProfile('${item.learnerId}')">
-        <div class="flag-title">${item.learner} — Urgent OT flag</div>
-        <div class="flag-desc">Tap to view learner profile and action this flag.</div>
-      </div>
-    `).join('');
-  }
-}
-
-// ─── Learner grid ─────────────────────────────
-function renderLearnerGrid() {
-  const grid = document.getElementById('learner-grid');
-  if (!learners.length) {
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;padding:3rem">
-      <div class="empty-icon">◎</div>
-      <div class="empty-title">No learners yet</div>
-      <div class="empty-sub">Add your first learner to get started</div>
-    </div>`;
-    return;
-  }
-
-  grid.innerHTML = learners.map(l => {
-    const unactioned = (l.rs_ot_flags || []).filter(f => !f.actioned);
-    const urgentFlag = unactioned.some(f => f.flag_type === 'urgent');
-    const modFlag = unactioned.some(f => f.flag_type === 'moderate');
-    const flagColor = urgentFlag ? 'flag-red' : modFlag ? 'flag-amber' : 'flag-green';
-    const flagLabel = urgentFlag ? 'Urgent flag' : modFlag ? 'Moderate flag' : unactioned.length ? 'Monitor flag' : 'No flags';
-    const age = l.date_of_birth ? calcAge(l.date_of_birth) : null;
-
-    return `<div class="learner-card" onclick="openProfile('${l.id}')">
-      <div class="learner-header">
-        <div class="avatar">${initials(l.full_name)}</div>
-        <div>
-          <div class="learner-name">${l.full_name}</div>
-          <div class="learner-meta">${age ? 'Age ' + age + ' · ' : ''}${STAGES[l.current_stage-1]?.ages || ''}</div>
-        </div>
-      </div>
-      <div class="learner-footer">
-        <span class="stage-badge s${l.current_stage}">Stage ${l.current_stage} — ${STAGES[l.current_stage-1]?.name}</span>
-        <div style="display:flex;align-items:center;gap:5px">
-          <div class="flag-dot ${flagColor}"></div>
-          <span style="font-size:11px;color:var(--gray-500)">${flagLabel}</span>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// ─── Learner profile ──────────────────────────
-async function openProfile(learnerId) {
-  const learner = learners.find(l => l.id === learnerId);
-  if (!learner) return;
-  currentLearner = learner;
-
-  // Load full data for this learner
-  const { data: fullData } = await db
-    .from('rs_learner_profiles')
-    .select('*, rs_sessions(*), rs_ot_flags(*)')
-    .eq('id', learnerId)
-    .single();
-
-  if (fullData) currentLearner = fullData;
-
-  // Render header
-  document.getElementById('profile-avatar').textContent = initials(currentLearner.full_name);
-  document.getElementById('profile-name').textContent = currentLearner.full_name;
-  const age = currentLearner.date_of_birth ? 'Age ' + calcAge(currentLearner.date_of_birth) + ' · ' : '';
-  document.getElementById('profile-meta').textContent = age + (currentLearner.eal_flag ? 'EAL learner · ' : '') + (currentLearner.language_primary || 'English');
-
-  // Render tabs
-  renderStageProgress();
-  renderSessionLog();
-  renderOTFlags();
-  renderProfileInfo();
-
-  // Show page
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-profile').classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-
-  // Reset tabs
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelector('.tab-btn').classList.add('active');
-  document.getElementById('tab-progress').classList.add('active');
-}
-
-function renderStageProgress() {
-  const current = currentLearner.current_stage;
-  const el = document.getElementById('stage-progress-list');
-  el.innerHTML = STAGES.map(s => {
-    const isActive = s.num === current;
-    const isDone = s.num < current;
-    const pct = isDone ? 100 : isActive ? 40 : 0;
-    return `<div class="stage-row ${isActive ? 'current' : ''} ${isDone ? 'complete' : ''}">
-      <div class="stage-circle" style="background:${isDone || isActive ? s.color : 'var(--gray-100)'};color:${isDone||isActive?'#fff':'var(--gray-500)'}">
-        ${isDone ? '✓' : s.num}
-      </div>
-      <div style="flex:1">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-          <div>
-            <span style="font-size:14px;font-weight:${isActive?'600':'400'};color:${isActive?'var(--teal-dark)':'var(--gray-700)'}">${s.name}</span>
-            <span style="font-size:12px;color:var(--gray-500);margin-left:8px">${s.ages}</span>
+        <div id="recent-learners-list">
+          <div class="empty-state" style="padding:1.5rem">
+            <div class="empty-sub">No learners yet — add your first learner to get started.</div>
           </div>
-          ${isActive ? '<span style="font-size:11px;background:var(--teal-light);color:var(--teal-dark);padding:2px 8px;border-radius:10px;font-weight:500">Current stage</span>' : ''}
-          ${isDone ? '<span style="font-size:11px;color:var(--gray-500)">Complete</span>' : ''}
-        </div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${s.color}"></div></div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function renderSessionLog() {
-  const sessions = (currentLearner.rs_sessions || []).sort((a,b) => new Date(b.session_date) - new Date(a.session_date));
-  const el = document.getElementById('session-log-list');
-  if (!sessions.length) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-title">No sessions logged yet</div><div class="empty-sub">Log your first session to start building the record.</div></div>';
-    return;
-  }
-  el.innerHTML = sessions.map(s => {
-    const ratingTag = `tag-${s.rating}`;
-    return `<div class="session-entry">
-      <div class="session-date">${formatDate(s.session_date)} · ${s.duration_minutes || '—'} min</div>
-      <div class="session-note">${s.notes || '(No notes recorded)'}</div>
-      <div class="session-tags">
-        <span class="session-tag">${SESSION_TYPE_LABELS[s.session_type] || s.session_type}</span>
-        <span class="session-tag ${ratingTag}">${RATING_LABELS[s.rating] || s.rating}</span>
-        ${s.session_type === 'flag' ? '<span class="session-tag tag-flag">OT concern</span>' : ''}
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function renderOTFlags() {
-  const flags = (currentLearner.rs_ot_flags || []).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-  const el = document.getElementById('ot-flags-list');
-  if (!flags.length) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-title">No OT flags</div><div class="empty-sub">No flags have been raised for this learner.</div></div>';
-    return;
-  }
-  el.innerHTML = flags.map(f => `
-    <div class="flag-card flag-${f.flag_type}">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.25rem">
-        <div class="flag-title">${FLAG_CAT_LABELS[f.flag_category] || f.flag_category}</div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">${f.flag_type}</span>
-          ${!f.actioned ? `<button class="btn btn-sm btn-outline" onclick="actionFlag('${f.id}')" style="font-size:11px;padding:2px 8px">Mark actioned</button>` : '<span style="font-size:11px;color:var(--gray-500)">Actioned</span>'}
         </div>
       </div>
-      <div class="flag-desc">${f.description}</div>
-      <div style="font-size:11px;color:var(--gray-500);margin-top:.4rem">${formatDate(f.created_at?.split('T')[0])}</div>
+
+      <div class="card">
+        <div class="section-header">
+          <div class="section-title">OT flags requiring attention</div>
+        </div>
+        <div id="dash-flags-list">
+          <div class="empty-state" style="padding:1rem"><div class="empty-sub">No unactioned flags.</div></div>
+        </div>
+      </div>
     </div>
-  `).join('');
-}
 
-function renderProfileInfo() {
-  const l = currentLearner;
-  const el = document.getElementById('profile-info-card');
-  el.innerHTML = `
-    <div class="section-title" style="margin-bottom:1rem">Learner information</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
-      <div><div style="font-size:12px;color:var(--gray-500)">Full name</div><div style="font-size:14px;font-weight:500;color:var(--gray-900);margin-top:2px">${l.full_name}</div></div>
-      <div><div style="font-size:12px;color:var(--gray-500)">Date of birth</div><div style="font-size:14px;font-weight:500;color:var(--gray-900);margin-top:2px">${l.date_of_birth ? formatDate(l.date_of_birth) : '—'}</div></div>
-      <div><div style="font-size:12px;color:var(--gray-500)">Home language</div><div style="font-size:14px;font-weight:500;color:var(--gray-900);margin-top:2px">${l.language_primary || '—'}</div></div>
-      <div><div style="font-size:12px;color:var(--gray-500)">EAL status</div><div style="font-size:14px;font-weight:500;color:var(--gray-900);margin-top:2px">${l.eal_flag ? 'Yes — EAL learner' : 'No'}</div></div>
-      <div><div style="font-size:12px;color:var(--gray-500)">Current stage</div><div style="font-size:14px;font-weight:500;margin-top:2px"><span class="stage-badge s${l.current_stage}">Stage ${l.current_stage} — ${STAGES[l.current_stage-1]?.name}</span></div></div>
-      <div><div style="font-size:12px;color:var(--gray-500)">Entry date</div><div style="font-size:14px;font-weight:500;color:var(--gray-900);margin-top:2px">${l.entry_date ? formatDate(l.entry_date) : '—'}</div></div>
+    <!-- Learners list -->
+    <div class="page" id="page-learners">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.75rem">
+        <div>
+          <div class="page-title">Learners</div>
+          <div class="page-sub" style="margin-bottom:0">All learners assigned to you</div>
+        </div>
+        <button class="btn btn-teal" onclick="openAddLearner()">+ Add learner</button>
+      </div>
+      <div class="learner-grid" id="learner-grid">
+        <div class="empty-state" style="grid-column:1/-1;padding:3rem">
+          <div class="empty-icon">◎</div>
+          <div class="empty-title">No learners yet</div>
+          <div class="empty-sub">Add your first learner to get started</div>
+        </div>
+      </div>
     </div>
-    ${l.programme_notes ? `<div class="divider"></div><div style="font-size:12px;color:var(--gray-500);margin-bottom:.4rem">Programme notes</div><div style="font-size:14px;color:var(--gray-700);line-height:1.6">${l.programme_notes}</div>` : ''}
-    <div class="divider"></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-outline btn-sm" onclick="promoteStage()">Advance to next stage</button>
+
+    <!-- Learner profile -->
+    <div class="page" id="page-profile">
+      <button class="back-btn" onclick="navTo('learners', document.querySelector('[onclick*=learners]'))">← Back to learners</button>
+      <div class="profile-header">
+        <div class="profile-avatar" id="profile-avatar"></div>
+        <div>
+          <div class="profile-name" id="profile-name"></div>
+          <div class="profile-meta" id="profile-meta"></div>
+        </div>
+        <div class="profile-actions">
+          <button class="btn btn-outline btn-sm" onclick="openAddSession()">+ Log session</button>
+          <button class="btn btn-teal btn-sm" onclick="openAddFlag()">+ OT flag</button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('progress', this)">Stage progress</button>
+        <button class="tab-btn" onclick="switchTab('sessions', this)">Session log</button>
+        <button class="tab-btn" onclick="switchTab('flags', this)">OT flags</button>
+        <button class="tab-btn" onclick="switchTab('info', this)">Profile info</button>
+      </div>
+
+      <div class="tab-panel active" id="tab-progress">
+        <div id="stage-progress-list"></div>
+      </div>
+
+      <div class="tab-panel" id="tab-sessions">
+        <div class="section-header">
+          <div class="section-title">Session log</div>
+          <button class="btn btn-outline btn-sm" onclick="openAddSession()">+ Log session</button>
+        </div>
+        <div id="session-log-list"></div>
+      </div>
+
+      <div class="tab-panel" id="tab-flags">
+        <div class="section-header">
+          <div class="section-title">OT flags</div>
+          <button class="btn btn-outline btn-sm" onclick="openAddFlag()">+ Add flag</button>
+        </div>
+        <div id="ot-flags-list"></div>
+      </div>
+
+      <div class="tab-panel" id="tab-info">
+        <div class="card" id="profile-info-card"></div>
+      </div>
     </div>
-  `;
-}
 
-// ─── Session add ──────────────────────────────
-async function addSession() {
-  if (!currentLearner) return;
-  const date = document.getElementById('sess-date').value;
-  const type = document.getElementById('sess-type').value;
-  const dur = document.getElementById('sess-dur').value;
-  const rating = document.getElementById('sess-rating').value;
-  const notes = document.getElementById('sess-notes').value.trim();
+    <!-- Screener placeholder -->
+    <div class="page" id="page-screener">
+      <div class="page-title">Diagnostic screener</span>
+    </button>
+    <button class="nav-item" onclick="window.location.href='gates.html'">
+      <span class="nav-icon">⬡</span> Gate assessments</div>
+      <div class="page-sub">Run the ReadSmart initial assessment for a new learner</div>
+      <div class="card">
+        <div class="empty-state">
+          <div class="empty-icon">◈</div>
+          <div class="empty-title">Select a learner to assess</div>
+          <div class="empty-sub">Choose an existing learner or add a new one first</div>
+          <div style="margin-top:1rem">
+            <button class="btn btn-teal" onclick="navTo('learners', document.querySelector('[onclick*=learners]'))">Go to learners</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-  const { error } = await db.from('rs_sessions').insert([{
-    learner_id: currentLearner.id,
-    tutor_id: currentUser.id,
-    stage: currentLearner.current_stage,
-    session_date: date,
-    session_type: type,
-    duration_minutes: dur ? parseInt(dur) : null,
-    rating,
-    notes: notes || null,
-    ot_flags_raised: type === 'flag',
-  }]);
+    <!-- Activity library placeholder -->
+    <div class="page" id="page-activities">
+      <div class="page-title">Activity library</div>
+      <div class="page-sub">All ReadSmart activities across all six stages</div>
+      <div class="card">
+        <div class="empty-state">
+          <div class="empty-icon">◷</div>
+          <div class="empty-title">Activity library coming soon</div>
+          <div class="empty-sub">Full stage 1–6 activity library with scripts, materials, and OT notes</div>
+        </div>
+      </div>
+    </div>
 
-  if (error) { toast('Error saving session: ' + error.message, 'error'); return; }
+    <!-- Settings -->
+    <div class="page" id="page-settings">
+      <div class="page-title">Settings</div>
+      <div class="page-sub">Your account and centre settings</div>
+      <div class="card" style="max-width:480px">
+        <div class="section-title" style="margin-bottom:1rem">Account</div>
+        <div style="font-size:13px;color:var(--gray-500);margin-bottom:.4rem">Signed in as</div>
+        <div style="font-size:15px;font-weight:500;color:var(--gray-900);margin-bottom:1.5rem" id="settings-email"></div>
+        <button class="btn btn-outline" onclick="logout()">Sign out</button>
+      </div>
+    </div>
 
-  ['sess-notes','sess-dur'].forEach(id => document.getElementById(id).value = '');
-  closeModal('modal-add-session');
+  </div><!-- /main -->
+</div><!-- /app -->
 
-  // Reload profile data
-  await openProfile(currentLearner.id);
-  await loadLearners();
-  toast('Session logged.', 'success');
-}
+<!-- MODALS -->
 
-// ─── OT flag add ──────────────────────────────
-async function addFlag() {
-  if (!currentLearner) return;
-  const severity = document.getElementById('flag-severity').value;
-  const category = document.getElementById('flag-category').value;
-  const desc = document.getElementById('flag-desc').value.trim();
+<!-- Add learner -->
+<div class="modal-overlay" id="modal-add-learner">
+  <div class="modal">
+    <div class="modal-title">Add new learner</div>
+    <label class="form-label">Full name</label>
+    <input class="form-input" id="new-name" placeholder="Learner's full name">
+    <label class="form-label">Date of birth</label>
+    <input class="form-input" type="date" id="new-dob">
+    <label class="form-label">Starting stage</label>
+    <select class="select-input" id="new-stage">
+      <option value="1">Stage 1 — Phonological foundation</option>
+      <option value="2">Stage 2 — Decoding and phonics</option>
+      <option value="3">Stage 3 — Word recognition</option>
+      <option value="4">Stage 4 — Reading fluency</option>
+      <option value="5">Stage 5 — Comprehension</option>
+      <option value="6">Stage 6 — Exceptional reader</option>
+    </select>
+    <label class="form-label">Home language</label>
+    <input class="form-input" id="new-lang" placeholder="e.g. Afrikaans, Oshiwambo, English">
+    <label class="form-label">EAL (English as additional language)?</label>
+    <select class="select-input" id="new-eal">
+      <option value="false">No — English is primary language</option>
+      <option value="true">Yes — EAL learner</option>
+    </select>
+    <label class="form-label">Initial notes (optional)</label>
+    <textarea class="form-input" id="new-notes" placeholder="Any prior concerns, context, or parent observations…"></textarea>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-add-learner')">Cancel</button>
+      <button class="btn btn-teal" onclick="addLearner()">Add learner</button>
+    </div>
+  </div>
+</div>
 
-  if (!desc) { toast('Please describe what you observed.', 'error'); return; }
+<!-- Log session -->
+<div class="modal-overlay" id="modal-add-session">
+  <div class="modal">
+    <div class="modal-title">Log session</div>
+    <label class="form-label">Session date</label>
+    <input class="form-input" type="date" id="sess-date">
+    <label class="form-label">Session type</label>
+    <select class="select-input" id="sess-type">
+      <option value="teaching">Teaching session</option>
+      <option value="review">Review / consolidation</option>
+      <option value="assessment">Assessment</option>
+      <option value="gate">Gate assessment</option>
+      <option value="flag">OT / concern noted</option>
+    </select>
+    <label class="form-label">Duration (minutes)</label>
+    <input class="form-input" type="number" id="sess-dur" placeholder="e.g. 20" min="5" max="120">
+    <label class="form-label">Session rating</label>
+    <select class="select-input" id="sess-rating">
+      <option value="great">Great session</option>
+      <option value="good">Good progress</option>
+      <option value="mixed">Mixed — some struggle</option>
+      <option value="difficult">Difficult session</option>
+    </select>
+    <label class="form-label">Session notes</label>
+    <textarea class="form-input" id="sess-notes" placeholder="What was covered, how the learner responded, anything to flag for next session…"></textarea>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-add-session')">Cancel</button>
+      <button class="btn btn-teal" onclick="addSession()">Save session</button>
+    </div>
+  </div>
+</div>
 
-  const { error } = await db.from('rs_ot_flags').insert([{
-    learner_id: currentLearner.id,
-    raised_by: currentUser.id,
-    flag_type: severity,
-    flag_category: category,
-    description: desc,
-    actioned: false,
-  }]);
+<!-- Add OT flag -->
+<div class="modal-overlay" id="modal-add-flag">
+  <div class="modal">
+    <div class="modal-title">Add OT flag</div>
+    <label class="form-label">Severity</label>
+    <select class="select-input" id="flag-severity">
+      <option value="urgent">Urgent — refer immediately</option>
+      <option value="moderate">Moderate — monitor and refer if persistent</option>
+      <option value="monitor">Monitor — early indicator</option>
+    </select>
+    <label class="form-label">Flag category</label>
+    <select class="select-input" id="flag-category">
+      <option value="phonological_blend">Phonological blending failure</option>
+      <option value="ran">Slow rapid automatised naming (RAN)</option>
+      <option value="nonsense_word">Nonsense word failure with real-word success</option>
+      <option value="reversal">Persistent letter reversals (b/d, p/q)</option>
+      <option value="tracking">Visual tracking / line loss</option>
+      <option value="working_memory">Working memory below expectation</option>
+      <option value="avoidance">Reading avoidance / emotional shutdown</option>
+      <option value="family_history">Family history of dyslexia</option>
+      <option value="fine_motor">Fine motor / pencil grip concern</option>
+      <option value="other">Other — see description</option>
+    </select>
+    <label class="form-label">Description</label>
+    <textarea class="form-input" id="flag-desc" placeholder="Describe exactly what you observed, when, and in what context…"></textarea>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-add-flag')">Cancel</button>
+      <button class="btn btn-teal" onclick="addFlag()">Save flag</button>
+    </div>
+  </div>
+</div>
 
-  if (error) { toast('Error saving flag: ' + error.message, 'error'); return; }
+<div class="toast" id="toast"></div>
 
-  document.getElementById('flag-desc').value = '';
-  closeModal('modal-add-flag');
-  await openProfile(currentLearner.id);
-  await loadLearners();
-  toast('OT flag saved.', 'success');
-}
-
-async function actionFlag(flagId) {
-  const { error } = await db.from('rs_ot_flags').update({ actioned: true }).eq('id', flagId);
-  if (error) { toast('Error updating flag.', 'error'); return; }
-  await openProfile(currentLearner.id);
-  await loadLearners();
-  toast('Flag marked as actioned.', 'success');
-}
-
-// ─── Stage promotion ──────────────────────────
-async function promoteStage() {
-  if (!currentLearner || currentLearner.current_stage >= 6) return;
-  const next = currentLearner.current_stage + 1;
-  if (!confirm(`Move ${currentLearner.full_name} to Stage ${next} — ${STAGES[next-1].name}?`)) return;
-
-  const { error } = await db.from('rs_learner_profiles')
-    .update({ current_stage: next }).eq('id', currentLearner.id);
-
-  if (error) { toast('Error updating stage.', 'error'); return; }
-  await openProfile(currentLearner.id);
-  await loadLearners();
-  toast(`${currentLearner.full_name} moved to Stage ${next}.`, 'success');
-}
-
-// ─── Tab switching ────────────────────────────
-function switchTab(tabId, btn) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('tab-' + tabId).classList.add('active');
-}
-
-// ─── Modals ───────────────────────────────────
-function openAddLearner() { document.getElementById('modal-add-learner').classList.add('open'); }
-function openAddSession() { document.getElementById('modal-add-session').classList.add('open'); }
-function openAddFlag() { document.getElementById('modal-add-flag').classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-
-// Close modal on overlay click
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
-});
-
-// ─── Toast ────────────────────────────────────
-function toast(msg, type = '') {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'toast show ' + type;
-  setTimeout(() => el.className = 'toast', 3000);
-}
-
-// ─── Helpers ─────────────────────────────────
-function initials(name) {
-  if (!name) return '?';
-  return name.trim().split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-}
-
-function calcAge(dob) {
-  const d = new Date(dob);
-  const now = new Date();
-  let age = now.getFullYear() - d.getFullYear();
-  const m = now.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
-  return age;
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return '—';
-  const d = new Date(dateStr + (dateStr.includes('T') ? '' : 'T00:00:00'));
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
+<script src="app.js"></script>
+</body>
+</html>
