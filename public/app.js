@@ -14,7 +14,6 @@ async function initSupabase() {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      storageKey: 'readsmart-auth',
     }
   });
 }
