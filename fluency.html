@@ -216,16 +216,30 @@ const STAGE_TARGETS=[0,30,55,85,120,140];
 async function init(){
   const res=await fetch('/.netlify/functions/config');
   const cfg=await res.json();
-  db=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
-    // Auth check - wait for Supabase to restore session from localStorage
-  let { data: { session } } = await db.auth.getSession();
-  if (!session) {
-    await new Promise(r => setTimeout(r, 1000));
-    const refresh = await db.auth.getSession();
-    session = refresh.data.session;
-  }
-  if (!session) { window.location.href = 'index.html'; return; }
-  currentUser = session.user;
+  db=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey,{
+    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'readsmart-auth'}
+  });
+    // Auth check using onAuthStateChange for reliable session detection
+  await new Promise((resolve) => {
+    const { data: { subscription } } = db.auth.onAuthStateChange((event, session) => {
+      subscription.unsubscribe();
+      if (!session) {
+        window.location.href = 'index.html';
+        resolve();
+        return;
+      }
+      currentUser = session.user;
+      resolve();
+    });
+    // Fallback: also check getSession in case listener fires before page load
+    db.auth.getSession().then(({ data: { session } }) => {
+      if (session && !currentUser) {
+        currentUser = session.user;
+        resolve();
+      }
+    });
+  });
+  if (!currentUser) return;
   await loadLearners();
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
 }
