@@ -313,11 +313,39 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     <div class="auth-logo">ReadSmart</div>
     <div class="auth-sub">Tutor portal — Metanoia Academy</div>
     <div class="auth-error" id="auth-error"></div>
-    <label class="form-label">Email address</label>
-    <input class="form-input" type="email" id="auth-email" placeholder="tutor@example.com" autocomplete="email">
-    <label class="form-label">Password</label>
-    <input class="form-input" type="password" id="auth-password" placeholder="Password" autocomplete="current-password">
-    <button class="btn-primary" onclick="login()">Sign in</button>
+    <div class="auth-success" id="auth-success" style="background:#E1F5EE;color:#085041;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:1rem;display:none"></div>
+
+    <!-- Sign in form -->
+    <div id="form-signin">
+      <label class="form-label">Email address</label>
+      <input class="form-input" type="email" id="auth-email" placeholder="tutor@example.com" autocomplete="email">
+      <label class="form-label">Password</label>
+      <input class="form-input" type="password" id="auth-password" placeholder="Password" autocomplete="current-password">
+      <button class="btn-primary" onclick="login()">Sign in</button>
+      <div style="text-align:center;margin-top:1rem">
+        <button onclick="showForgot()" style="background:none;border:none;color:#888780;font-size:13px;cursor:pointer;font-family:inherit">Forgot password?</button>
+      </div>
+    </div>
+
+    <!-- Forgot password form -->
+    <div id="form-forgot" style="display:none">
+      <div style="font-size:15px;font-weight:500;color:#1a1a1a;margin-bottom:.5rem">Reset password</div>
+      <div style="font-size:13px;color:#888780;margin-bottom:1rem">Enter your email and we will send a reset link.</div>
+      <label class="form-label">Email address</label>
+      <input class="form-input" type="email" id="reset-email" placeholder="tutor@example.com">
+      <button class="btn-primary" onclick="sendReset()">Send reset link</button>
+      <div style="text-align:center;margin-top:1rem">
+        <button onclick="showSignin()" style="background:none;border:none;color:#888780;font-size:13px;cursor:pointer;font-family:inherit">← Back to sign in</button>
+      </div>
+    </div>
+
+    <!-- New password form (shown after clicking reset link) -->
+    <div id="form-newpass" style="display:none">
+      <div style="font-size:15px;font-weight:500;color:#1a1a1a;margin-bottom:.5rem">Set new password</div>
+      <label class="form-label">New password</label>
+      <input class="form-input" type="password" id="new-password" placeholder="Enter new password">
+      <button class="btn-primary" onclick="updatePassword()">Set password</button>
+    </div>
   </div>
 </div>
 
@@ -342,15 +370,13 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     </button>
     <div class="nav-section">Tools</div>
     <button class="nav-item" onclick="window.location.href='screener.html'">
-      <span class="nav-icon">◈</span> Diagnostic screener
+      <span class="nav-icon">◈</span> Diagnostic screener</span>
     </button>
-    <button class="nav-item" onclick="navTo('activities', this)">
-      <button class="nav-item" onclick="window.location.href='gates.html'">
+    <button class="nav-item" onclick="window.location.href='gates.html'">
       <span class="nav-icon">⬡</span> Gate assessments
     </button>
     <button class="nav-item" onclick="window.location.href='fluency.html'">
-      <span class="nav-icon">◷</span> Fluency tracker
-    </button>
+      <span class="nav-icon">◷</span> Activity library
     </button>
     <div class="nav-section">Account</div>
     <button class="nav-item" onclick="navTo('settings', this)">
@@ -461,7 +487,10 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
     <!-- Screener placeholder -->
     <div class="page" id="page-screener">
-      <div class="page-title">Diagnostic screener</div>
+      <div class="page-title">Diagnostic screener</span>
+    </button>
+    <button class="nav-item" onclick="window.location.href='gates.html'">
+      <span class="nav-icon">⬡</span> Gate assessments</div>
       <div class="page-sub">Run the ReadSmart initial assessment for a new learner</div>
       <div class="card">
         <div class="empty-state">
